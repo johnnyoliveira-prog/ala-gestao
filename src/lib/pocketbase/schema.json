@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-23T15:04:59.155Z",
+  "generatedAt": "2026-04-23T15:09:53.783Z",
   "collections": [
     {
       "name": "users",
@@ -37,6 +37,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "allowed_companies",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -48,11 +54,11 @@
       "name": "dres",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && @request.auth.allowed_companies ?= company_name",
+        "view": "@request.auth.id != '' && @request.auth.allowed_companies ?= company_name",
+        "create": "@request.auth.id != '' && @request.auth.allowed_companies ?= company_name",
+        "update": "@request.auth.id != '' && @request.auth.allowed_companies ?= company_name",
+        "delete": "@request.auth.id != '' && @request.auth.allowed_companies ?= company_name"
       },
       "fields": [
         {

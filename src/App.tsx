@@ -8,6 +8,7 @@ import Layout from './components/Layout'
 import Index from './pages/Index'
 import History from './pages/History'
 import Login from './pages/Login'
+import Signup from './pages/Signup'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -18,6 +19,7 @@ const App = () => (
         <Sonner />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/history" element={<History />} />

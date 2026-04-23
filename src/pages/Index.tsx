@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useAuth } from '@/hooks/use-auth'
 import {
   Dialog,
   DialogContent,
@@ -81,6 +82,13 @@ export default function Index() {
   const [showOverwriteModal, setShowOverwriteModal] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const { user } = useAuth()
+
+  const allowedCompanies = useMemo(() => {
+    if (!user?.allowed_companies || !Array.isArray(user.allowed_companies)) return []
+    return COMPANIES.filter((c) => user.allowed_companies.includes(c))
+  }, [user])
 
   // Derived calculations
   const netResult = useMemo(() => {
@@ -192,7 +200,7 @@ export default function Index() {
   }
 
   const handleSaveAttempt = async () => {
-    if (!company || !month || !year || !extractedData) {
+    if (!company || !month || !year || !extractedData || allowedCompanies.length === 0) {
       toast({
         variant: 'destructive',
         title: 'Atenção',
@@ -297,18 +305,24 @@ export default function Index() {
                 <Label>
                   Empresa <span className="text-red-500">*</span>
                 </Label>
-                <Select value={company} onValueChange={setCompany}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="Selecione a empresa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COMPANIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {allowedCompanies.length === 0 ? (
+                  <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md border border-red-100">
+                    Nenhuma empresa vinculada ao seu usuário. Contate o administrador.
+                  </div>
+                ) : (
+                  <Select value={company} onValueChange={setCompany}>
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Selecione a empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allowedCompanies.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
