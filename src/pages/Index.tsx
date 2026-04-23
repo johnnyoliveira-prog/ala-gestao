@@ -121,12 +121,20 @@ export default function Index() {
   }, [totalTransfer])
 
   const validateAndSetFile = (selectedFile: File) => {
-    const validTypes = ['application/pdf', 'text/csv']
-    if (!validTypes.includes(selectedFile.type) && !/\.(pdf|csv)$/i.test(selectedFile.name)) {
+    const validTypes = [
+      'application/pdf',
+      'text/csv',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+    ]
+    if (
+      !validTypes.includes(selectedFile.type) &&
+      !/\.(pdf|csv|xlsx|xls)$/i.test(selectedFile.name)
+    ) {
       toast({
         variant: 'destructive',
         title: 'Arquivo inválido',
-        description: 'Por favor, envie apenas arquivos PDF ou CSV.',
+        description: 'Formato não suportado. Por favor, envie apenas arquivos PDF, CSV ou XLSX.',
       })
       return
     }
@@ -158,16 +166,32 @@ export default function Index() {
         setExtractedData(response)
         toast({ title: 'Extração concluída' })
       } else {
-        const textContent = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => resolve(reader.result as string)
-          reader.onerror = reject
-          reader.readAsText(uploadedFile)
-        })
+        const isExcel = /\.(xlsx|xls)$/i.test(uploadedFile.name)
+        let contentToSend = ''
+        let isBase64 = false
+
+        if (isExcel) {
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.onerror = reject
+            reader.readAsDataURL(uploadedFile)
+          })
+          contentToSend = dataUrl.split(',')[1]
+          isBase64 = true
+        } else {
+          contentToSend = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.onerror = reject
+            reader.readAsText(uploadedFile)
+          })
+          isBase64 = false
+        }
 
         const response = await pb.send('/backend/v1/parse-spreadsheet', {
           method: 'POST',
-          body: JSON.stringify({ content: textContent }),
+          body: JSON.stringify({ content: contentToSend, isBase64 }),
           headers: { 'Content-Type': 'application/json' },
         })
         if (response.data && response.data.length > 0) {
@@ -265,7 +289,13 @@ export default function Index() {
     if (!user) return
     try {
       setIsSaving(true)
-      const fileType = file ? (file.name.endsWith('.pdf') ? 'pdf' : 'csv') : ''
+      const fileType = file
+        ? file.name.endsWith('.pdf')
+          ? 'pdf'
+          : file.name.match(/\.(xlsx|xls)$/i)
+            ? 'xlsx'
+            : 'csv'
+        : ''
       const taxa_adm_val =
         (Number(extractedData.net_result) || 0) * ((Number(extractedData.admin_fee_pct) || 0) / 100)
       const taxa_res_val =
@@ -431,7 +461,7 @@ export default function Index() {
                     type="file"
                     ref={fileInputRef}
                     className="hidden"
-                    accept=".pdf,.csv"
+                    accept=".pdf,.csv,.xlsx,.xls"
                     onChange={(e) => e.target.files && validateAndSetFile(e.target.files[0])}
                   />
                   <div className="flex justify-center gap-4 mb-4 text-slate-400">
@@ -441,7 +471,7 @@ export default function Index() {
                   <p className="text-sm font-medium text-slate-700">
                     Clique ou arraste o arquivo aqui
                   </p>
-                  <p className="text-xs text-slate-500 mt-2">Suporta PDF, CSV</p>
+                  <p className="text-xs text-slate-500 mt-2">Suporta PDF, CSV, XLSX</p>
                 </div>
               ) : (
                 <div className="border rounded-xl p-4 bg-slate-50 flex items-center justify-between">
