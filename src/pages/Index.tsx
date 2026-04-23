@@ -32,6 +32,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import pb from '@/lib/pocketbase/client'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getCompanies, Company, checkDuplicateDreData, saveDreFull, DreData } from '@/services/dres'
 
 const MONTHS = [
@@ -115,22 +117,24 @@ export default function Index() {
       'application/pdf',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv',
     ]
     if (
       !validTypes.includes(selectedFile.type) &&
       !selectedFile.name.endsWith('.pdf') &&
       !selectedFile.name.endsWith('.xlsx') &&
-      !selectedFile.name.endsWith('.xls')
+      !selectedFile.name.endsWith('.xls') &&
+      !selectedFile.name.endsWith('.csv')
     ) {
       toast({
         variant: 'destructive',
         title: 'Arquivo inválido',
-        description: 'Por favor, envie apenas arquivos PDF ou Excel (.xlsx, .xls).',
+        description: 'Por favor, envie apenas arquivos Excel (.xlsx, .xls) ou CSV.',
       })
       return
     }
     setFile(selectedFile)
-    simulateExtraction(selectedFile)
+    extractFromFile(selectedFile)
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -141,33 +145,41 @@ export default function Index() {
     }
   }
 
-  const simulateExtraction = (uploadedFile: File) => {
+  const extractFromFile = async (uploadedFile: File) => {
     setIsExtracting(true)
     setExtractedData(null)
 
-    setTimeout(() => {
-      const baseRev = 100000 + (uploadedFile.size % 200000)
-      const baseExp = baseRev * 0.45
-      const baseRes = baseRev - baseExp
-
-      setExtractedData({
-        total_revenue: baseRev,
-        total_expenses: baseExp,
-        net_result: baseRes,
-        admin_fee_pct: 10,
-        reserve_fee_pct: 5,
-        investors_data: [
-          { name: 'Sócio Majoritário', pct: 70, value: 0 },
-          { name: 'Sócio Minoritário', pct: 30, value: 0 },
-        ],
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(uploadedFile)
       })
 
-      setIsExtracting(false)
+      const base64 = dataUrl.split(',')[1]
+
+      const response = await pb.send('/backend/v1/parse-dre', {
+        method: 'POST',
+        body: JSON.stringify({ content: base64 }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      setExtractedData(response)
       toast({
         title: 'Extração concluída',
         description: 'Os dados foram extraídos do arquivo com sucesso.',
       })
-    }, 2000)
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro na Extração',
+        description: getErrorMessage(error) || 'Estrutura de dados inválida no arquivo.',
+      })
+      setFile(null)
+    } finally {
+      setIsExtracting(false)
+    }
   }
 
   const removeFile = () => {
@@ -253,6 +265,7 @@ export default function Index() {
         fileType,
         data: dataToSave,
         investors: extractedData.investors_data,
+        lineItems: extractedData.line_items,
         overwriteId: idToUpdate,
       })
 
@@ -403,7 +416,7 @@ export default function Index() {
                   <p className="text-sm font-medium text-slate-700">
                     Clique ou arraste o arquivo aqui
                   </p>
-                  <p className="text-xs text-slate-500 mt-2">Suporta PDF, XLSX e XLS (Máx. 10MB)</p>
+                  <p className="text-xs text-slate-500 mt-2">Suporta XLSX e XLS (Máx. 10MB)</p>
                 </div>
               ) : (
                 <div className="border rounded-xl p-4 bg-slate-50 flex items-center justify-between">

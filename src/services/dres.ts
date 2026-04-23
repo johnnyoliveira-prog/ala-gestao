@@ -83,6 +83,7 @@ export const saveDreFull = async ({
   fileType,
   data,
   investors,
+  lineItems,
   overwriteId,
 }: {
   userId: string
@@ -93,6 +94,7 @@ export const saveDreFull = async ({
   fileType: string
   data: any
   investors: any[]
+  lineItems?: any[]
   overwriteId?: string
 }) => {
   let uploadId = null
@@ -135,6 +137,14 @@ export const saveDreFull = async ({
     for (const inv of oldInvestors) {
       await pb.collection('dre_investors').delete(inv.id)
     }
+
+    // Delete old line items
+    const oldLineItems = await pb.collection('dre_line_items').getFullList({
+      filter: `dre_data = "${overwriteId}"`,
+    })
+    for (const item of oldLineItems) {
+      await pb.collection('dre_line_items').delete(item.id)
+    }
   } else {
     dreDataRecord = await pb.collection('dre_data').create(dreDataPayload)
   }
@@ -147,6 +157,19 @@ export const saveDreFull = async ({
       participation_percentage: inv.pct,
       amount: inv.value,
     })
+  }
+
+  // Save line items
+  if (lineItems && lineItems.length > 0) {
+    for (const item of lineItems) {
+      await pb.collection('dre_line_items').create({
+        dre_data: dreDataRecord.id,
+        tipo: item.tipo,
+        descricao: item.descricao,
+        valor: item.valor,
+        categoria: item.categoria || 'Operacional',
+      })
+    }
   }
 
   return dreDataRecord
