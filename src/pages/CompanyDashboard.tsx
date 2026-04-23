@@ -44,10 +44,10 @@ export default function CompanyDashboard() {
   const [investors, setInvestors] = useState<DreInvestor[]>([])
   const [detailsLoading, setDetailsLoading] = useState(false)
 
-  const fetchData = async () => {
+  const fetchData = async (silent = false) => {
     if (!slug) return
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       setError(false)
       const comp = await getCompanyBySlug(slug)
       setCompany(comp)
@@ -214,7 +214,7 @@ export default function CompanyDashboard() {
           <TrendCharts allData={allDreData} selectedId={selectedId} />
           <CompositionCharts lineItems={lineItems} />
           <DataTables lineItems={lineItems} investors={investors} />
-          <FutureReceivables dreData={currentDre} onUpdated={() => fetchData()} />
+          <FutureReceivables dreData={currentDre} onUpdated={() => fetchData(true)} />
         </div>
       )}
     </div>
