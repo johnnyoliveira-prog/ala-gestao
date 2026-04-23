@@ -25,7 +25,7 @@ routerAdd(
 
       const sheetName = workbook.SheetNames[0]
       const worksheet = workbook.Sheets[sheetName]
-      const json = xlsx.utils.sheet_to_json(worksheet, { defval: '' })
+      const json = xlsx.utils.sheet_to_json(worksheet, { header: 1, defval: '' })
 
       if (json.length === 0) {
         return e.json(200, { data: [] })

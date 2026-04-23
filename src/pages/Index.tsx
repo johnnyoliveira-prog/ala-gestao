@@ -77,16 +77,14 @@ export default function Index() {
   const [isExtracting, setIsExtracting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
-  const [rawSpreadsheetData, setRawSpreadsheetData] = useState<any[] | null>(null)
+  const [rawSpreadsheetData, setRawSpreadsheetData] = useState<any[][] | null>(null)
   const [isMapping, setIsMapping] = useState(false)
+  const [headerRowIndex, setHeaderRowIndex] = useState(0)
   const [mapping, setMapping] = useState({
-    total_receitas: '',
-    total_despesas: '',
-    resultado: '',
     codigo: '',
     descricao: '',
-    valor: '',
-    categoria: '',
+    receita: '',
+    despesa: '',
   })
 
   const [extractedData, setExtractedData] = useState<any>(null)
@@ -195,11 +193,45 @@ export default function Index() {
           headers: { 'Content-Type': 'application/json' },
         })
         if (response.data && response.data.length > 0) {
-          setRawSpreadsheetData(response.data)
+          const rawData = response.data as any[][]
+          setRawSpreadsheetData(rawData)
+
+          // Auto-detect header row
+          let headerIdx = 0
+          for (let i = 0; i < Math.min(10, rawData.length); i++) {
+            const rowString = rawData[i].map(String).join(' ').toLowerCase()
+            if (
+              (rowString.includes('receita') && rowString.includes('despesa')) ||
+              rowString.includes('descrição')
+            ) {
+              headerIdx = i
+              break
+            }
+          }
+          setHeaderRowIndex(headerIdx)
+
+          // Auto-map columns based on header
+          const headers = rawData[headerIdx] || []
+          const newMapping = { codigo: '', descricao: '', receita: '', despesa: '' }
+          headers.forEach((h: any, idx: number) => {
+            const hStr = String(h).toLowerCase()
+            if (hStr.includes('código') || hStr.includes('agrupamento'))
+              newMapping.codigo = String(idx)
+            if (
+              hStr.includes('descrição') ||
+              (hStr.includes('centro de custo') && !newMapping.descricao)
+            )
+              newMapping.descricao = String(idx)
+            if (hStr.includes('receita') && !hStr.includes('despesa'))
+              newMapping.receita = String(idx)
+            if (hStr.includes('despesa') || hStr.includes('custo')) newMapping.despesa = String(idx)
+          })
+
+          setMapping(newMapping)
           setIsMapping(true)
           toast({
             title: 'Planilha Lida',
-            description: 'Por favor, mapeie as colunas para o sistema.',
+            description: 'Por favor, confirme as colunas e a linha de cabeçalho.',
           })
         } else {
           throw new Error('A planilha está vazia ou não pôde ser lida.')
@@ -218,33 +250,100 @@ export default function Index() {
   }
 
   const handleApplyMapping = () => {
-    if (!mapping.total_receitas || !mapping.total_despesas || !mapping.resultado) {
+    if (!mapping.descricao || !mapping.receita || !mapping.despesa) {
       toast({
         variant: 'destructive',
         title: 'Erro de Mapeamento',
-        description: 'Os campos de totais são obrigatórios.',
+        description: 'Os campos Descrição, Receita e Despesa são obrigatórios.',
       })
       return
     }
     if (!rawSpreadsheetData || rawSpreadsheetData.length === 0) return
 
-    const firstRow = rawSpreadsheetData[0]
-    const line_items = rawSpreadsheetData
-      .map((row) => ({
-        tipo: row[mapping.categoria]?.toString().toLowerCase().includes('receita')
-          ? 'receita'
-          : 'despesa',
-        codigo: row[mapping.codigo] || '',
-        descricao: row[mapping.descricao] || '',
-        valor: Number(row[mapping.valor]) || 0,
-        categoria: row[mapping.categoria] || '',
-      }))
-      .filter((item) => item.descricao || item.valor > 0)
+    const dataRows = rawSpreadsheetData.slice(headerRowIndex + 1)
+    let totalRev = 0
+    let totalExp = 0
+    let foundTotal = false
+    const line_items: any[] = []
+
+    dataRows.forEach((row) => {
+      const desc = String(row[Number(mapping.descricao)] || '').trim()
+      if (!desc) return
+
+      const code = mapping.codigo ? String(row[Number(mapping.codigo)] || '').trim() : ''
+      const revRaw = row[Number(mapping.receita)]
+      const expRaw = row[Number(mapping.despesa)]
+
+      const parseNum = (val: any) => {
+        if (typeof val === 'number') return val
+        if (!val) return 0
+        const str = String(val).replace(/\./g, '').replace(',', '.')
+        return Number(str) || 0
+      }
+
+      const rev = parseNum(revRaw)
+      const exp = parseNum(expRaw)
+
+      if (desc.toUpperCase() === 'TOTAL') {
+        totalRev = rev
+        totalExp = exp
+        foundTotal = true
+        return
+      }
+
+      if (rev > 0 || exp > 0 || rev < 0 || exp < 0) {
+        if (rev !== 0)
+          line_items.push({
+            tipo: 'receita',
+            codigo: code,
+            descricao: desc,
+            valor: rev,
+            categoria: 'Operacional',
+          })
+        if (exp !== 0)
+          line_items.push({
+            tipo: 'despesa',
+            codigo: code,
+            descricao: desc,
+            valor: exp,
+            categoria: 'Operacional',
+          })
+      }
+    })
+
+    if (line_items.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Nenhum dado válido',
+        description:
+          'Não foi possível encontrar valores numéricos nas colunas selecionadas. Verifique o mapeamento.',
+      })
+      return
+    }
+
+    if (!foundTotal) {
+      const rootItems = line_items.filter((item) => !item.codigo || !item.codigo.includes('.'))
+      if (rootItems.length > 0) {
+        totalRev = rootItems
+          .filter((i) => i.tipo === 'receita')
+          .reduce((sum, i) => sum + i.valor, 0)
+        totalExp = rootItems
+          .filter((i) => i.tipo === 'despesa')
+          .reduce((sum, i) => sum + i.valor, 0)
+      } else {
+        totalRev = line_items
+          .filter((i) => i.tipo === 'receita')
+          .reduce((sum, i) => sum + i.valor, 0)
+        totalExp = line_items
+          .filter((i) => i.tipo === 'despesa')
+          .reduce((sum, i) => sum + i.valor, 0)
+      }
+    }
 
     setExtractedData({
-      total_revenue: Number(firstRow[mapping.total_receitas]) || 0,
-      total_expenses: Number(firstRow[mapping.total_despesas]) || 0,
-      net_result: Number(firstRow[mapping.resultado]) || 0,
+      total_revenue: totalRev,
+      total_expenses: totalExp,
+      net_result: totalRev - totalExp,
       admin_fee_pct: 10,
       reserve_fee_pct: 5,
       investors_data: [
@@ -348,10 +447,6 @@ export default function Index() {
       setIsSaving(false)
     }
   }
-
-  const headers =
-    rawSpreadsheetData && rawSpreadsheetData.length > 0 ? Object.keys(rawSpreadsheetData[0]) : []
-  const previewData = rawSpreadsheetData ? rawSpreadsheetData.slice(0, 3) : []
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -512,7 +607,7 @@ export default function Index() {
                   ) : (
                     <Calculator className="w-5 h-5 text-slate-600" />
                   )}
-                  {isMapping ? 'Mapear Campos' : 'Dados Extraídos'}
+                  {isMapping ? 'Mapear Colunas' : 'Dados Extraídos'}
                 </CardTitle>
                 <CardDescription>
                   {isMapping
@@ -543,65 +638,97 @@ export default function Index() {
                 </div>
               ) : isMapping ? (
                 <div className="p-6 space-y-6 animate-fade-in-up">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
-                    {[
-                      { label: 'Receitas Totais', field: 'total_receitas', req: true },
-                      { label: 'Despesas Totais', field: 'total_despesas', req: true },
-                      { label: 'Resultado Líquido', field: 'resultado', req: true },
-                      { label: 'Código do Item', field: 'codigo' },
-                      { label: 'Descrição / Conta', field: 'descricao' },
-                      { label: 'Valor do Item', field: 'valor' },
-                      { label: 'Categoria', field: 'categoria' },
-                    ].map((m) => (
-                      <div key={m.field} className="space-y-1.5">
-                        <Label className="text-xs uppercase tracking-wider text-slate-500">
-                          {m.label} {m.req && <span className="text-red-500">*</span>}
-                        </Label>
-                        <Select
-                          value={mapping[m.field as keyof typeof mapping]}
-                          onValueChange={(val) => setMapping((p) => ({ ...p, [m.field]: val }))}
-                        >
-                          <SelectTrigger className="bg-white h-9">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {headers.map((h) => (
-                              <SelectItem key={h} value={h}>
-                                {h}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ))}
-                    <div className="sm:col-span-2 lg:col-span-3 pt-2">
-                      <Button onClick={handleApplyMapping} className="w-full sm:w-auto">
-                        Confirmar Mapeamento
+                  <div className="space-y-4 bg-slate-50/50 p-5 rounded-xl border border-slate-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                      <Label className="font-semibold text-slate-700 whitespace-nowrap">
+                        Linha de Cabeçalho:
+                      </Label>
+                      <Select
+                        value={String(headerRowIndex)}
+                        onValueChange={(v) => setHeaderRowIndex(Number(v))}
+                      >
+                        <SelectTrigger className="w-full sm:w-[350px] bg-white border-slate-200">
+                          <SelectValue placeholder="Selecione a linha" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {rawSpreadsheetData?.slice(0, 15).map((row, i) => (
+                            <SelectItem key={i} value={String(i)}>
+                              Linha {i + 1} ({String(row[0] || row[1] || '').substring(0, 20)}...)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                      {[
+                        { label: 'Código da Conta', field: 'codigo', req: false },
+                        { label: 'Descrição / Conta', field: 'descricao', req: true },
+                        { label: 'Valor Receita', field: 'receita', req: true },
+                        { label: 'Valor Despesa', field: 'despesa', req: true },
+                      ].map((m) => (
+                        <div key={m.field} className="space-y-1.5">
+                          <Label className="text-xs uppercase tracking-wider text-slate-500 font-medium">
+                            {m.label} {m.req && <span className="text-red-500">*</span>}
+                          </Label>
+                          <Select
+                            value={mapping[m.field as keyof typeof mapping]}
+                            onValueChange={(val) => setMapping((p) => ({ ...p, [m.field]: val }))}
+                          >
+                            <SelectTrigger className="bg-white h-9">
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(rawSpreadsheetData?.[headerRowIndex] || []).map(
+                                (h: any, i: number) => (
+                                  <SelectItem key={i} value={String(i)}>
+                                    Coluna {i + 1} {h ? `(${h})` : ''}
+                                  </SelectItem>
+                                ),
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="pt-4 border-t border-slate-200">
+                      <Button
+                        onClick={handleApplyMapping}
+                        className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        Confirmar Mapeamento e Extrair
                       </Button>
                     </div>
                   </div>
 
                   <div>
-                    <h4 className="text-sm font-bold text-slate-700 mb-3 uppercase">
-                      Pré-visualização (Primeiras Linhas)
+                    <h4 className="text-sm font-bold text-slate-700 mb-3 uppercase tracking-wider">
+                      Pré-visualização da Planilha
                     </h4>
-                    <div className="border rounded-md overflow-x-auto">
+                    <div className="border rounded-md overflow-x-auto shadow-sm">
                       <Table>
-                        <TableHeader className="bg-slate-50">
+                        <TableHeader className="bg-slate-100">
                           <TableRow>
-                            {headers.map((h) => (
-                              <TableHead key={h} className="whitespace-nowrap">
-                                {h}
-                              </TableHead>
-                            ))}
+                            {(rawSpreadsheetData?.[headerRowIndex] || []).map(
+                              (h: any, i: number) => (
+                                <TableHead key={i} className="whitespace-nowrap font-semibold">
+                                  {h || `Coluna ${i + 1}`}
+                                </TableHead>
+                              ),
+                            )}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {previewData.map((row, i) => (
+                          {(
+                            rawSpreadsheetData?.slice(headerRowIndex + 1, headerRowIndex + 4) || []
+                          ).map((row, i) => (
                             <TableRow key={i}>
-                              {headers.map((h) => (
-                                <TableCell key={h} className="whitespace-nowrap text-slate-600">
-                                  {row[h]}
+                              {(rawSpreadsheetData?.[headerRowIndex] || []).map((_, colIdx) => (
+                                <TableCell
+                                  key={colIdx}
+                                  className="whitespace-nowrap text-slate-600 text-sm"
+                                >
+                                  {String(row[colIdx] || '')}
                                 </TableCell>
                               ))}
                             </TableRow>
@@ -620,7 +747,10 @@ export default function Index() {
                         type="number"
                         value={extractedData.total_revenue}
                         onChange={(e) =>
-                          setExtractedData((p) => ({ ...p, total_revenue: Number(e.target.value) }))
+                          setExtractedData((p: any) => ({
+                            ...p,
+                            total_revenue: Number(e.target.value),
+                          }))
                         }
                       />
                     </div>
@@ -630,7 +760,7 @@ export default function Index() {
                         type="number"
                         value={extractedData.total_expenses}
                         onChange={(e) =>
-                          setExtractedData((p) => ({
+                          setExtractedData((p: any) => ({
                             ...p,
                             total_expenses: Number(e.target.value),
                           }))
@@ -643,12 +773,15 @@ export default function Index() {
                         type="number"
                         className={cn(
                           (extractedData.net_result ?? 0) >= 0
-                            ? 'text-emerald-600'
-                            : 'text-red-600',
+                            ? 'text-emerald-600 font-medium'
+                            : 'text-red-600 font-medium',
                         )}
                         value={extractedData.net_result}
                         onChange={(e) =>
-                          setExtractedData((p) => ({ ...p, net_result: Number(e.target.value) }))
+                          setExtractedData((p: any) => ({
+                            ...p,
+                            net_result: Number(e.target.value),
+                          }))
                         }
                       />
                     </div>
@@ -660,7 +793,7 @@ export default function Index() {
                           type="number"
                           value={extractedData.admin_fee_pct}
                           onChange={(e) =>
-                            setExtractedData((p) => ({
+                            setExtractedData((p: any) => ({
                               ...p,
                               admin_fee_pct: Number(e.target.value),
                             }))
@@ -673,7 +806,7 @@ export default function Index() {
                           type="number"
                           value={extractedData.reserve_fee_pct}
                           onChange={(e) =>
-                            setExtractedData((p) => ({
+                            setExtractedData((p: any) => ({
                               ...p,
                               reserve_fee_pct: Number(e.target.value),
                             }))
@@ -682,25 +815,29 @@ export default function Index() {
                       </div>
                     </div>
 
-                    <div className="col-span-1 sm:col-span-2 p-4 rounded-lg bg-slate-900 text-white mt-2 flex items-center justify-between shadow-sm">
+                    <div className="col-span-1 sm:col-span-2 p-4 rounded-xl bg-slate-900 text-white mt-2 flex items-center justify-between shadow-md">
                       <div>
                         <p className="text-slate-300 text-sm font-medium">Total a Repassar</p>
                       </div>
-                      <div className="text-2xl font-bold">{formatCurrency(totalTransfer)}</div>
+                      <div className="text-2xl font-bold tracking-tight">
+                        {formatCurrency(totalTransfer)}
+                      </div>
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">
+                    <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider">
                       Divisão de Investidores
                     </h3>
-                    <div className="border rounded-md divide-y overflow-hidden">
+                    <div className="border rounded-md divide-y overflow-hidden shadow-sm">
                       {extractedData.investors_data.map((inv: any, idx: number) => (
                         <div key={idx} className="flex justify-between p-3 bg-slate-50/50">
                           <div className="flex flex-col">
-                            <span className="text-sm font-medium">{inv.name}</span>
-                            <span className="text-xs text-slate-500">{inv.pct}%</span>
+                            <span className="text-sm font-medium text-slate-700">{inv.name}</span>
+                            <span className="text-xs text-slate-500 font-medium">{inv.pct}%</span>
                           </div>
-                          <span className="font-semibold">{formatCurrency(inv.value)}</span>
+                          <span className="font-semibold text-slate-700">
+                            {formatCurrency(inv.value)}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -710,7 +847,7 @@ export default function Index() {
                     <Textarea
                       value={futureReceivables}
                       onChange={(e) => setFutureReceivables(e.target.value)}
-                      className="min-h-[100px]"
+                      className="min-h-[100px] resize-none"
                     />
                   </div>
                 </div>
