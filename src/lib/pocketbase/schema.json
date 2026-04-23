@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-23T15:12:43.630Z",
+  "generatedAt": "2026-04-23T15:22:58.026Z",
   "collections": [
     {
       "name": "users",
@@ -149,6 +149,383 @@
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_dres_company_date ON dres (company_name, month, year)"]
+    },
+    {
+      "name": "companies",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "group_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_companies_slug ON companies (slug)"]
+    },
+    {
+      "name": "dre_uploads",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && user = @request.auth.id",
+        "view": "@request.auth.id != '' && user = @request.auth.id",
+        "create": "@request.auth.id != '' && @request.body.user = @request.auth.id",
+        "update": "@request.auth.id != '' && user = @request.auth.id",
+        "delete": "@request.auth.id != '' && user = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "company",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "companies"
+        },
+        {
+          "name": "month",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "year",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "file_ref",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "file_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "dre_data",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && user = @request.auth.id",
+        "view": "@request.auth.id != '' && user = @request.auth.id",
+        "create": "@request.auth.id != '' && @request.body.user = @request.auth.id",
+        "update": "@request.auth.id != '' && user = @request.auth.id",
+        "delete": "@request.auth.id != '' && user = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "upload",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "dre_uploads"
+        },
+        {
+          "name": "company",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "companies"
+        },
+        {
+          "name": "month",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "year",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "total_receitas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_despesas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resultado",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "saldo_anterior",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resultado_acumulado",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "taxa_administracao_percentual",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "taxa_administracao_valor",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "taxa_reserva_percentual",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "taxa_reserva_valor",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "outras_deducoes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_repassar",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "recebiveis_futuros",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_dre_data_unique ON dre_data (company, month, year, user)"
+      ]
+    },
+    {
+      "name": "dre_line_items",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && dre_data.user = @request.auth.id",
+        "view": "@request.auth.id != '' && dre_data.user = @request.auth.id",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && dre_data.user = @request.auth.id",
+        "delete": "@request.auth.id != '' && dre_data.user = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "dre_data",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "dre_data"
+        },
+        {
+          "name": "tipo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "percentual",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "categoria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "dre_investors",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && dre_data.user = @request.auth.id",
+        "view": "@request.auth.id != '' && dre_data.user = @request.auth.id",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && dre_data.user = @request.auth.id",
+        "delete": "@request.auth.id != '' && dre_data.user = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "dre_data",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "dre_data"
+        },
+        {
+          "name": "investor_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "participation_percentage",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

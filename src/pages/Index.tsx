@@ -23,6 +23,7 @@ import {
 import { toast } from '@/hooks/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/hooks/use-auth'
+import { cn } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -31,29 +32,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { createDre, updateDre, checkDuplicateDre, DreRecord } from '@/services/dres'
-
-const COMPANIES = [
-  'CR Hotel Boutique',
-  'CR Vinícola',
-  'CR Condomínio',
-  'Fleme',
-  'Madri',
-  'Linving Mall',
-  'Reserva dos Inconfidentes',
-  'Eco Resort',
-]
+import { getCompanies, Company, checkDuplicateDreData, saveDreFull, DreData } from '@/services/dres'
 
 const MONTHS = [
-  { value: '01', label: 'Janeiro' },
-  { value: '02', label: 'Fevereiro' },
-  { value: '03', label: 'Março' },
-  { value: '04', label: 'Abril' },
-  { value: '05', label: 'Maio' },
-  { value: '06', label: 'Junho' },
-  { value: '07', label: 'Julho' },
-  { value: '08', label: 'Agosto' },
-  { value: '09', label: 'Setembro' },
+  { value: '1', label: 'Janeiro' },
+  { value: '2', label: 'Fevereiro' },
+  { value: '3', label: 'Março' },
+  { value: '4', label: 'Abril' },
+  { value: '5', label: 'Maio' },
+  { value: '6', label: 'Junho' },
+  { value: '7', label: 'Julho' },
+  { value: '8', label: 'Agosto' },
+  { value: '9', label: 'Setembro' },
   { value: '10', label: 'Outubro' },
   { value: '11', label: 'Novembro' },
   { value: '12', label: 'Dezembro' },
@@ -66,6 +56,8 @@ const formatCurrency = (value: number) => {
 }
 
 export default function Index() {
+  const [dbCompanies, setDbCompanies] = useState<Company[]>([])
+
   const [company, setCompany] = useState('')
   const [month, setMonth] = useState('')
   const [year, setYear] = useState('')
@@ -78,46 +70,36 @@ export default function Index() {
   const [extractedData, setExtractedData] = useState<any>(null)
   const [futureReceivables, setFutureReceivables] = useState('')
 
-  const [duplicateRecord, setDuplicateRecord] = useState<DreRecord | null>(null)
+  const [duplicateRecord, setDuplicateRecord] = useState<DreData | null>(null)
   const [showOverwriteModal, setShowOverwriteModal] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { user } = useAuth()
 
-  const allowedCompanies = useMemo(() => {
-    if (!user?.allowed_companies || !Array.isArray(user.allowed_companies)) return []
-    return COMPANIES.filter((c) => user.allowed_companies.includes(c))
-  }, [user])
-
-  // Derived calculations
-  const netResult = useMemo(() => {
-    if (!extractedData) return 0
-    return (Number(extractedData.total_revenue) || 0) - (Number(extractedData.total_expenses) || 0)
-  }, [extractedData?.total_revenue, extractedData?.total_expenses])
+  useEffect(() => {
+    getCompanies().then(setDbCompanies).catch(console.error)
+  }, [])
 
   const totalTransfer = useMemo(() => {
     if (!extractedData) return 0
+    const net = Number(extractedData.net_result) || 0
     const totalFeePct =
       (Number(extractedData.admin_fee_pct) || 0) + (Number(extractedData.reserve_fee_pct) || 0)
-    return netResult - netResult * (totalFeePct / 100)
-  }, [netResult, extractedData?.admin_fee_pct, extractedData?.reserve_fee_pct])
+    return net - net * (totalFeePct / 100)
+  }, [extractedData?.net_result, extractedData?.admin_fee_pct, extractedData?.reserve_fee_pct])
 
-  // Automatically update calculated fields if inputs change
   useEffect(() => {
     if (extractedData) {
       setExtractedData((prev: any) => ({
         ...prev,
-        net_result: netResult,
-        total_transfer: totalTransfer,
-        // Re-calculate investor shares based on new total
         investors_data: prev.investors_data.map((inv: any) => ({
           ...inv,
           value: totalTransfer * (inv.pct / 100),
         })),
       }))
     }
-  }, [netResult, totalTransfer])
+  }, [totalTransfer])
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -163,19 +145,19 @@ export default function Index() {
     setIsExtracting(true)
     setExtractedData(null)
 
-    // Simulate API delay
     setTimeout(() => {
-      // Generate some deterministic-ish dummy data based on file size for demo purposes
       const baseRev = 100000 + (uploadedFile.size % 200000)
       const baseExp = baseRev * 0.45
+      const baseRes = baseRev - baseExp
 
       setExtractedData({
         total_revenue: baseRev,
         total_expenses: baseExp,
+        net_result: baseRes,
         admin_fee_pct: 10,
         reserve_fee_pct: 5,
         investors_data: [
-          { name: 'Sócio Majoritário', pct: 70, value: 0 }, // Value calculated by effect
+          { name: 'Sócio Majoritário', pct: 70, value: 0 },
           { name: 'Sócio Minoritário', pct: 30, value: 0 },
         ],
       })
@@ -200,7 +182,7 @@ export default function Index() {
   }
 
   const handleSaveAttempt = async () => {
-    if (!company || !month || !year || !extractedData || allowedCompanies.length === 0) {
+    if (!company || !month || !year || !extractedData) {
       toast({
         variant: 'destructive',
         title: 'Atenção',
@@ -209,9 +191,23 @@ export default function Index() {
       return
     }
 
+    const rec = Number(extractedData.total_revenue) || 0
+    const desp = Number(extractedData.total_expenses) || 0
+    const res = Number(extractedData.net_result) || 0
+
+    if (Math.abs(rec - desp - res) > 0.01) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro de Validação',
+        description:
+          'O resultado líquido deve ser exatamente a diferença entre Receitas Totais e Despesas Totais.',
+      })
+      return
+    }
+
     setIsSaving(true)
-    // Check duplicates
-    const duplicate = await checkDuplicateDre(company, month, year)
+    const duplicate = await checkDuplicateDreData(company, Number(month), Number(year))
+
     if (duplicate) {
       setDuplicateRecord(duplicate)
       setShowOverwriteModal(true)
@@ -222,30 +218,43 @@ export default function Index() {
   }
 
   const performSave = async (idToUpdate?: string) => {
+    if (!user) return
     try {
       setIsSaving(true)
-      const formData = new FormData()
-      formData.append('company_name', company)
-      formData.append('month', month)
-      formData.append('year', year)
-      formData.append('total_revenue', extractedData.total_revenue.toString())
-      formData.append('total_expenses', extractedData.total_expenses.toString())
-      formData.append('net_result', extractedData.net_result.toString())
-      formData.append('admin_fee_pct', extractedData.admin_fee_pct.toString())
-      formData.append('reserve_fee_pct', extractedData.reserve_fee_pct.toString())
-      formData.append('total_transfer', extractedData.total_transfer.toString())
-      formData.append('investors_data', JSON.stringify(extractedData.investors_data))
-      formData.append('future_receivables', futureReceivables)
 
-      if (file) {
-        formData.append('file_ref', file)
+      const fileType = file ? (file.name.endsWith('.pdf') ? 'pdf' : 'xlsx') : ''
+      const taxa_adm_val =
+        (Number(extractedData.net_result) || 0) * ((Number(extractedData.admin_fee_pct) || 0) / 100)
+      const taxa_res_val =
+        (Number(extractedData.net_result) || 0) *
+        ((Number(extractedData.reserve_fee_pct) || 0) / 100)
+
+      const dataToSave = {
+        total_receitas: Number(extractedData.total_revenue) || 0,
+        total_despesas: Number(extractedData.total_expenses) || 0,
+        resultado: Number(extractedData.net_result) || 0,
+        saldo_anterior: 0,
+        resultado_acumulado: Number(extractedData.net_result) || 0,
+        taxa_administracao_percentual: Number(extractedData.admin_fee_pct) || 0,
+        taxa_administracao_valor: taxa_adm_val,
+        taxa_reserva_percentual: Number(extractedData.reserve_fee_pct) || 0,
+        taxa_reserva_valor: taxa_res_val,
+        outras_deducoes: 0,
+        total_repassar: totalTransfer,
+        recebiveis_futuros: futureReceivables,
       }
 
-      if (idToUpdate) {
-        await updateDre(idToUpdate, formData)
-      } else {
-        await createDre(formData)
-      }
+      await saveDreFull({
+        userId: user.id,
+        companyId: company,
+        month: Number(month),
+        year: Number(year),
+        file,
+        fileType,
+        data: dataToSave,
+        investors: extractedData.investors_data,
+        overwriteId: idToUpdate,
+      })
 
       toast({
         title: 'Sucesso',
@@ -253,7 +262,6 @@ export default function Index() {
         className: 'bg-emerald-50 border-emerald-200 text-emerald-900',
       })
 
-      // Reset form
       setCompany('')
       setMonth('')
       setYear('')
@@ -269,6 +277,8 @@ export default function Index() {
       setIsSaving(false)
     }
   }
+
+  const selectedCompanyName = dbCompanies.find((c) => c.id === company)?.name
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -294,7 +304,6 @@ export default function Index() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Config & Upload */}
         <div className="lg:col-span-1 space-y-6">
           <Card className="shadow-sm border-slate-200">
             <CardHeader className="pb-4">
@@ -305,9 +314,9 @@ export default function Index() {
                 <Label>
                   Empresa <span className="text-red-500">*</span>
                 </Label>
-                {allowedCompanies.length === 0 ? (
-                  <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md border border-red-100">
-                    Nenhuma empresa vinculada ao seu usuário. Contate o administrador.
+                {dbCompanies.length === 0 ? (
+                  <div className="p-3 text-sm text-slate-600 bg-slate-50 rounded-md border border-slate-100">
+                    Carregando empresas...
                   </div>
                 ) : (
                   <Select value={company} onValueChange={setCompany}>
@@ -315,9 +324,9 @@ export default function Index() {
                       <SelectValue placeholder="Selecione a empresa" />
                     </SelectTrigger>
                     <SelectContent>
-                      {allowedCompanies.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
+                      {dbCompanies.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -425,7 +434,6 @@ export default function Index() {
           </Card>
         </div>
 
-        {/* Right Column: Extraction & Data */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-sm border-slate-200 overflow-hidden h-full flex flex-col">
             <CardHeader className="bg-slate-50 border-b pb-4 flex flex-row items-center justify-between">
@@ -468,7 +476,6 @@ export default function Index() {
                 </div>
               ) : extractedData ? (
                 <div className="p-6 space-y-8 animate-fade-in-up">
-                  {/* Financial Summary Edit Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                     <div className="space-y-1.5">
                       <Label className="text-slate-500 text-xs uppercase tracking-wider">
@@ -503,14 +510,19 @@ export default function Index() {
                       <Label className="text-slate-500 text-xs uppercase tracking-wider">
                         Resultado Líquido
                       </Label>
-                      <div className="p-2.5 rounded-md bg-slate-50 border border-slate-100 font-semibold text-lg flex items-center justify-between">
-                        <span className="text-slate-500 text-sm font-normal">R$</span>
-                        <span className={netResult >= 0 ? 'text-emerald-600' : 'text-red-600'}>
-                          {netResult.toLocaleString('pt-BR', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
-                        </span>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-slate-500 text-sm">R$</span>
+                        <Input
+                          type="number"
+                          className={cn(
+                            'pl-9 font-medium',
+                            (extractedData.net_result ?? 0) >= 0
+                              ? 'text-emerald-600'
+                              : 'text-red-600',
+                          )}
+                          value={extractedData.net_result || ''}
+                          onChange={(e) => handleDataChange('net_result', e.target.value)}
+                        />
                       </div>
                     </div>
 
@@ -550,7 +562,6 @@ export default function Index() {
                     </div>
                   </div>
 
-                  {/* Investors Split */}
                   <div>
                     <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider">
                       Divisão de Investidores
@@ -575,7 +586,6 @@ export default function Index() {
                     </div>
                   </div>
 
-                  {/* Future Receivables */}
                   <div className="space-y-2">
                     <Label className="text-slate-900 font-semibold">
                       Recebíveis Futuros / Observações
@@ -594,7 +604,6 @@ export default function Index() {
         </div>
       </div>
 
-      {/* Overwrite Dialog */}
       <Dialog open={showOverwriteModal} onOpenChange={setShowOverwriteModal}>
         <DialogContent>
           <DialogHeader>
@@ -603,10 +612,10 @@ export default function Index() {
               Registro Duplicado Encontrado
             </DialogTitle>
             <DialogDescription className="pt-2 text-slate-600 text-base">
-              Já existe um DRE salvo para a empresa{' '}
-              <strong className="text-slate-900">{company}</strong> referente a{' '}
+              Já existe um DRE para{' '}
+              <strong className="text-slate-900">{selectedCompanyName}</strong> em{' '}
               <strong className="text-slate-900">
-                {month}/{year}
+                {MONTHS.find((m) => m.value === month)?.label}/{year}
               </strong>
               .
               <br />

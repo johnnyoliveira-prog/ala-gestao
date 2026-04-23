@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Download, Eye, Search, FileText } from 'lucide-react'
-import { getDres, getDreFileUrl, DreRecord } from '@/services/dres'
+import { getDreData, getDreUploadFileUrl, DreData, getDreInvestors } from '@/services/dres'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
   Dialog,
@@ -26,15 +26,16 @@ const formatCurrency = (value: number) => {
 }
 
 export default function History() {
-  const [records, setRecords] = useState<DreRecord[]>([])
+  const [records, setRecords] = useState<DreData[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
-  const [viewRecord, setViewRecord] = useState<DreRecord | null>(null)
+  const [viewRecord, setViewRecord] = useState<DreData | null>(null)
+  const [viewInvestors, setViewInvestors] = useState<any[]>([])
 
   const loadData = async () => {
     try {
-      const data = await getDres()
+      const data = await getDreData()
       setRecords(data)
     } catch (e) {
       console.error(e)
@@ -47,14 +48,22 @@ export default function History() {
     loadData()
   }, [])
 
-  useRealtime('dres', () => {
+  useRealtime('dre_data', () => {
     loadData()
   })
 
+  useEffect(() => {
+    if (viewRecord) {
+      getDreInvestors(viewRecord.id).then(setViewInvestors).catch(console.error)
+    } else {
+      setViewInvestors([])
+    }
+  }, [viewRecord])
+
   const filteredRecords = records.filter(
     (r) =>
-      r.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.year.includes(searchTerm),
+      r.expand?.company?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.year.toString().includes(searchTerm),
   )
 
   return (
@@ -112,18 +121,18 @@ export default function History() {
                 filteredRecords.map((record) => (
                   <TableRow key={record.id} className="hover:bg-slate-50/50">
                     <TableCell className="font-medium text-slate-900">
-                      {record.company_name}
+                      {record.expand?.company?.name || 'Desconhecida'}
                     </TableCell>
                     <TableCell>
                       {record.month}/{record.year}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(record.total_revenue)}
+                      {formatCurrency(record.total_receitas)}
                     </TableCell>
                     <TableCell
-                      className={`text-right font-medium ${record.net_result >= 0 ? 'text-emerald-600' : 'text-red-600'}`}
+                      className={`text-right font-medium ${record.resultado >= 0 ? 'text-emerald-600' : 'text-red-600'}`}
                     >
-                      {formatCurrency(record.net_result)}
+                      {formatCurrency(record.resultado)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -135,7 +144,7 @@ export default function History() {
                         >
                           <Eye className="h-4 w-4 text-slate-500" />
                         </Button>
-                        {record.file_ref && (
+                        {record.expand?.upload?.file_ref && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -143,7 +152,7 @@ export default function History() {
                             title="Baixar Arquivo Original"
                           >
                             <a
-                              href={getDreFileUrl(record)}
+                              href={getDreUploadFileUrl(record.expand.upload)}
                               target="_blank"
                               rel="noopener noreferrer"
                             >
@@ -161,7 +170,6 @@ export default function History() {
         </CardContent>
       </Card>
 
-      {/* View Dialog */}
       <Dialog open={!!viewRecord} onOpenChange={(open) => !open && setViewRecord(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -170,7 +178,7 @@ export default function History() {
               Resumo do DRE
             </DialogTitle>
             <DialogDescription>
-              {viewRecord?.company_name} - {viewRecord?.month}/{viewRecord?.year}
+              {viewRecord?.expand?.company?.name} - {viewRecord?.month}/{viewRecord?.year}
             </DialogDescription>
           </DialogHeader>
 
@@ -180,13 +188,13 @@ export default function History() {
                 <div className="bg-slate-50 p-4 rounded-lg">
                   <p className="text-sm text-slate-500 mb-1">Receita Total</p>
                   <p className="text-lg font-semibold">
-                    {formatCurrency(viewRecord.total_revenue)}
+                    {formatCurrency(viewRecord.total_receitas)}
                   </p>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-lg">
                   <p className="text-sm text-slate-500 mb-1">Despesas</p>
                   <p className="text-lg font-semibold text-red-600">
-                    {formatCurrency(viewRecord.total_expenses)}
+                    {formatCurrency(viewRecord.total_despesas)}
                   </p>
                 </div>
               </div>
@@ -195,38 +203,38 @@ export default function History() {
                 <div>
                   <p className="text-slate-400 text-sm">Valor Repassado aos Investidores</p>
                   <p className="text-xs mt-1 text-slate-500">
-                    Descontadas as taxas ({viewRecord.admin_fee_pct}% adm,{' '}
-                    {viewRecord.reserve_fee_pct}% reserva)
+                    Descontadas as taxas ({viewRecord.taxa_administracao_percentual}% adm,{' '}
+                    {viewRecord.taxa_reserva_percentual}% reserva)
                   </p>
                 </div>
                 <p className="text-2xl font-bold text-emerald-400">
-                  {formatCurrency(viewRecord.total_transfer)}
+                  {formatCurrency(viewRecord.total_repassar)}
                 </p>
               </div>
 
-              {viewRecord.investors_data && viewRecord.investors_data.length > 0 && (
+              {viewInvestors && viewInvestors.length > 0 && (
                 <div>
                   <h4 className="text-sm font-bold text-slate-700 mb-2 uppercase">Distribuição</h4>
                   <div className="border rounded-md divide-y">
-                    {viewRecord.investors_data.map((inv, idx) => (
+                    {viewInvestors.map((inv, idx) => (
                       <div key={idx} className="flex justify-between p-3 text-sm">
                         <span>
-                          {inv.name} ({inv.pct}%)
+                          {inv.investor_name} ({inv.participation_percentage}%)
                         </span>
-                        <span className="font-semibold">{formatCurrency(inv.value)}</span>
+                        <span className="font-semibold">{formatCurrency(inv.amount)}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {viewRecord.future_receivables && (
+              {viewRecord.recebiveis_futuros && (
                 <div>
                   <h4 className="text-sm font-bold text-slate-700 mb-2 uppercase">
                     Observações / Recebíveis Futuros
                   </h4>
                   <div className="bg-amber-50 border border-amber-100 p-4 rounded-md text-sm text-amber-900 whitespace-pre-wrap">
-                    {viewRecord.future_receivables}
+                    {viewRecord.recebiveis_futuros}
                   </div>
                 </div>
               )}
