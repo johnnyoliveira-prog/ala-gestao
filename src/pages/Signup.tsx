@@ -94,7 +94,9 @@ export default function Signup() {
                 onChange={(e) => setName(e.target.value)}
                 required
               />
-              {fieldErrors.name && <p className="text-xs text-red-500">{fieldErrors.name}</p>}
+              {fieldErrors.name && (
+                <p className="text-[0.8rem] font-medium text-destructive">{fieldErrors.name}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -106,7 +108,9 @@ export default function Signup() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-              {fieldErrors.email && <p className="text-xs text-red-500">{fieldErrors.email}</p>}
+              {fieldErrors.email && (
+                <p className="text-[0.8rem] font-medium text-destructive">{fieldErrors.email}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
@@ -118,7 +122,7 @@ export default function Signup() {
                 required
               />
               {fieldErrors.password && (
-                <p className="text-xs text-red-500">{fieldErrors.password}</p>
+                <p className="text-[0.8rem] font-medium text-destructive">{fieldErrors.password}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -131,7 +135,9 @@ export default function Signup() {
                 required
               />
               {fieldErrors.passwordConfirm && (
-                <p className="text-xs text-red-500">{fieldErrors.passwordConfirm}</p>
+                <p className="text-[0.8rem] font-medium text-destructive">
+                  {fieldErrors.passwordConfirm}
+                </p>
               )}
             </div>
             <Button

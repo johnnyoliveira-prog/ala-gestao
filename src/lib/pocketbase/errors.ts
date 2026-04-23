@@ -9,7 +9,14 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   const errors: FieldErrors = {}
   for (const [field, detail] of Object.entries(data)) {
     if (detail && typeof detail === 'object' && 'message' in detail) {
-      errors[field] = (detail as { message: string }).message
+      const code = (detail as { code?: string }).code
+      let message = (detail as { message: string }).message
+
+      if (field === 'email' && code === 'validation_not_unique') {
+        message = 'Este e-mail já está em uso.'
+      }
+
+      errors[field] = message
     }
   }
   return errors
