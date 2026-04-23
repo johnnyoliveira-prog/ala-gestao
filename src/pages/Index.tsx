@@ -165,35 +165,46 @@ export default function Index() {
         toast({ title: 'Extração concluída' })
       } else {
         const isExcel = /\.(xlsx|xls)$/i.test(uploadedFile.name)
-        let contentToSend = ''
-        let isBase64 = false
+
+        await new Promise<void>((resolve, reject) => {
+          if ((window as any).XLSX) {
+            resolve()
+            return
+          }
+          const script = document.createElement('script')
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+          script.onload = () => resolve()
+          script.onerror = () =>
+            reject(new Error('Falha ao carregar biblioteca de leitura de planilhas.'))
+          document.head.appendChild(script)
+        })
+
+        const XLSX = (window as any).XLSX
+        let rawData: any[][] = []
 
         if (isExcel) {
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result as string)
-            reader.onerror = reject
-            reader.readAsDataURL(uploadedFile)
-          })
-          contentToSend = dataUrl.split(',')[1]
-          isBase64 = true
+          const arrayBuffer = await uploadedFile.arrayBuffer()
+          const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+          const sheetName = workbook.SheetNames[0]
+          if (sheetName) {
+            rawData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+              header: 1,
+              defval: '',
+            })
+          }
         } else {
-          contentToSend = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result as string)
-            reader.onerror = reject
-            reader.readAsText(uploadedFile)
-          })
-          isBase64 = false
+          const text = await uploadedFile.text()
+          const workbook = XLSX.read(text, { type: 'string' })
+          const sheetName = workbook.SheetNames[0]
+          if (sheetName) {
+            rawData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+              header: 1,
+              defval: '',
+            })
+          }
         }
 
-        const response = await pb.send('/backend/v1/parse-spreadsheet', {
-          method: 'POST',
-          body: JSON.stringify({ content: contentToSend, isBase64 }),
-          headers: { 'Content-Type': 'application/json' },
-        })
-        if (response.data && response.data.length > 0) {
-          const rawData = response.data as any[][]
+        if (rawData && rawData.length > 0) {
           setRawSpreadsheetData(rawData)
 
           // Auto-detect header row
