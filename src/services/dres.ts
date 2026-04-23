@@ -237,3 +237,31 @@ export const getDreLineItems = async (dreDataId: string): Promise<DreLineItem[]>
 export const updateFutureReceivables = async (id: string, text: string): Promise<DreData> => {
   return await pb.collection('dre_data').update<DreData>(id, { recebiveis_futuros: text })
 }
+
+export const deleteDreData = async (dreDataId: string): Promise<void> => {
+  const record = await pb.collection('dre_data').getOne<DreData>(dreDataId)
+
+  const items = await pb
+    .collection('dre_line_items')
+    .getFullList({ filter: `dre_data="${dreDataId}"` })
+  for (const item of items) {
+    await pb.collection('dre_line_items').delete(item.id)
+  }
+
+  const invs = await pb
+    .collection('dre_investors')
+    .getFullList({ filter: `dre_data="${dreDataId}"` })
+  for (const inv of invs) {
+    await pb.collection('dre_investors').delete(inv.id)
+  }
+
+  await pb.collection('dre_data').delete(dreDataId)
+
+  if (record.upload) {
+    try {
+      await pb.collection('dre_uploads').delete(record.upload)
+    } catch (e) {
+      console.warn('Could not delete upload record', e)
+    }
+  }
+}

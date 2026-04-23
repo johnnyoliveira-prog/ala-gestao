@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -10,9 +10,17 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Download, Eye, Search, FileText } from 'lucide-react'
-import { getDreData, getDreUploadFileUrl, DreData, getDreInvestors } from '@/services/dres'
+import { Download, Eye, Search, FileText, Trash2 } from 'lucide-react'
+import {
+  getDreData,
+  getDreUploadFileUrl,
+  DreData,
+  getDreInvestors,
+  deleteDreData,
+} from '@/services/dres'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useAuth } from '@/hooks/use-auth'
+import { toast } from '@/hooks/use-toast'
 import {
   Dialog,
   DialogContent,
@@ -20,18 +28,32 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
 export default function History() {
+  const { user } = useAuth()
   const [records, setRecords] = useState<DreData[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
   const [viewRecord, setViewRecord] = useState<DreData | null>(null)
   const [viewInvestors, setViewInvestors] = useState<any[]>([])
+
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const loadData = async () => {
     try {
@@ -60,6 +82,25 @@ export default function History() {
     }
   }, [viewRecord])
 
+  const handleDelete = async () => {
+    if (!deleteId) return
+    setIsDeleting(true)
+    try {
+      await deleteDreData(deleteId)
+      toast({
+        title: 'Sucesso',
+        description: 'Registro e dados associados excluídos com sucesso.',
+        className: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+      })
+      setDeleteId(null)
+      loadData()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao excluir o registro.' })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const filteredRecords = records.filter(
     (r) =>
       r.expand?.company?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -72,7 +113,7 @@ export default function History() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Histórico de DREs</h1>
           <p className="text-slate-500 mt-1">
-            Visualize e baixe os demonstrativos processados anteriormente.
+            Visualize, baixe e gerencie os demonstrativos processados.
           </p>
         </div>
 
@@ -135,7 +176,7 @@ export default function History() {
                       {formatCurrency(record.resultado)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -158,6 +199,16 @@ export default function History() {
                             >
                               <Download className="h-4 w-4 text-slate-500" />
                             </a>
+                          </Button>
+                        )}
+                        {record.user === user?.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteId(record.id)}
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500 hover:text-red-700" />
                           </Button>
                         )}
                       </div>
@@ -242,6 +293,32 @@ export default function History() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir permanentemente este DRE? Esta ação removerá o arquivo,
+              os dados extraídos, os itens de linha e as informações dos investidores. Esta ação não
+              pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleDelete()
+              }}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? 'Excluindo...' : 'Excluir DRE'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
