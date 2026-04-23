@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-23T15:01:22.797Z",
+  "generatedAt": "2026-04-23T15:04:59.155Z",
   "collections": [
     {
       "name": "users",
@@ -29,25 +29,120 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
         "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",
         "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''"
       ]
+    },
+    {
+      "name": "dres",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "company_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "month",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "year",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "total_revenue",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_expenses",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "net_result",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "admin_fee_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reserve_fee_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_transfer",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "investors_data",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "future_receivables",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "file_ref",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_dres_company_date ON dres (company_name, month, year)"]
     }
   ]
 }
