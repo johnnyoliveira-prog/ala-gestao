@@ -164,8 +164,53 @@ export const getDreUploadFileUrl = (upload: DreUpload): string => {
   return pb.files.getUrl(upload, upload.file_ref)
 }
 
-export const getDreInvestors = async (dreDataId: string) => {
-  return await pb.collection('dre_investors').getFullList({
+export interface DreLineItem {
+  id: string
+  dre_data: string
+  tipo: string
+  codigo: string
+  descricao: string
+  valor: number
+  percentual: number
+  categoria: string
+  created: string
+  updated: string
+}
+
+export interface DreInvestor {
+  id: string
+  dre_data: string
+  investor_name: string
+  participation_percentage: number
+  amount: number
+  created: string
+  updated: string
+}
+
+export const getDreInvestors = async (dreDataId: string): Promise<DreInvestor[]> => {
+  return await pb.collection('dre_investors').getFullList<DreInvestor>({
     filter: `dre_data = "${dreDataId}"`,
   })
+}
+
+export const getCompanyBySlug = async (slug: string): Promise<Company> => {
+  return await pb.collection('companies').getFirstListItem<Company>(`slug="${slug}"`)
+}
+
+export const getCompanyDreData = async (companyId: string): Promise<DreData[]> => {
+  return await pb.collection('dre_data').getFullList<DreData>({
+    filter: `company="${companyId}"`,
+    sort: '-year,-month',
+  })
+}
+
+export const getDreLineItems = async (dreDataId: string): Promise<DreLineItem[]> => {
+  return await pb.collection('dre_line_items').getFullList<DreLineItem>({
+    filter: `dre_data="${dreDataId}"`,
+    sort: '-valor',
+  })
+}
+
+export const updateFutureReceivables = async (id: string, text: string): Promise<DreData> => {
+  return await pb.collection('dre_data').update<DreData>(id, { recebiveis_futuros: text })
 }
