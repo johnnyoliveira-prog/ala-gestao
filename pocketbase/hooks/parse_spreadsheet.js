@@ -10,9 +10,7 @@ routerAdd(
     if (!content) return e.badRequestError('Nenhum conteúdo enviado.')
 
     try {
-      // Use the pre-bundled minified version to avoid Node built-in dependency resolution errors (fs, stream, crypto, etc)
-      // during the PocketBase hook bundling process.
-      const xlsx = require('xlsx/dist/xlsx.full.min.js')
+      const xlsx = require('xlsx')
       let workbook
 
       if (isBase64) {
