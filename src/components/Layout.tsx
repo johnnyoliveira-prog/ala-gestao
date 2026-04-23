@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { UploadCloud, History, LogOut, User } from 'lucide-react'
+import { LayoutDashboard, UploadCloud, History, LogOut, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export default function Layout() {
@@ -21,7 +21,8 @@ export default function Layout() {
   if (!user) return <Navigate to="/login" replace />
 
   const navLinks = [
-    { name: 'Upload DRE', path: '/', icon: UploadCloud },
+    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { name: 'Upload DRE', path: '/upload', icon: UploadCloud },
     { name: 'Histórico', path: '/history', icon: History },
   ]
 

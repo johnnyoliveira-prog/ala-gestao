@@ -6,6 +6,7 @@ import { AuthProvider } from '@/hooks/use-auth'
 
 import Layout from './components/Layout'
 import Index from './pages/Index'
+import Upload from './pages/Upload'
 import History from './pages/History'
 import CompanyDashboard from './pages/CompanyDashboard'
 import Login from './pages/Login'
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/signup" element={<Signup />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
+            <Route path="/upload" element={<Upload />} />
             <Route path="/history" element={<History />} />
             <Route path="/company/:slug" element={<CompanyDashboard />} />
           </Route>
