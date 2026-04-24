@@ -250,34 +250,17 @@ export default function History() {
                 </div>
               </div>
 
-              <div className="bg-slate-900 text-white p-6 rounded-lg flex items-center justify-between">
+              <div className="bg-slate-50 border border-slate-200 p-6 rounded-lg flex items-center justify-between">
                 <div>
-                  <p className="text-slate-400 text-sm">Valor Repassado aos Investidores</p>
-                  <p className="text-xs mt-1 text-slate-500">
-                    Descontadas as taxas ({viewRecord.taxa_administracao_percentual}% adm,{' '}
-                    {viewRecord.taxa_reserva_percentual}% reserva)
-                  </p>
+                  <p className="text-slate-600 font-medium">Resultado</p>
+                  <p className="text-xs text-slate-500">Receita Total - Despesas</p>
                 </div>
-                <p className="text-2xl font-bold text-emerald-400">
-                  {formatCurrency(viewRecord.total_repassar)}
+                <p
+                  className={`text-2xl font-bold ${viewRecord.resultado >= 0 ? 'text-emerald-600' : 'text-red-600'}`}
+                >
+                  {formatCurrency(viewRecord.resultado)}
                 </p>
               </div>
-
-              {viewInvestors && viewInvestors.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-bold text-slate-700 mb-2 uppercase">Distribuição</h4>
-                  <div className="border rounded-md divide-y">
-                    {viewInvestors.map((inv, idx) => (
-                      <div key={idx} className="flex justify-between p-3 text-sm">
-                        <span>
-                          {inv.investor_name} ({inv.participation_percentage}%)
-                        </span>
-                        <span className="font-semibold">{formatCurrency(inv.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {viewRecord.recebiveis_futuros && (
                 <div>

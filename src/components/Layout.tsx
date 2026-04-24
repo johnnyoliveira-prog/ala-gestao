@@ -10,11 +10,28 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { LayoutDashboard, UploadCloud, History, LogOut, User } from 'lucide-react'
+import { LayoutDashboard, UploadCloud, History, LogOut, User, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useState, useEffect } from 'react'
+import { getCompanies, Company } from '@/services/dres'
 
 export default function Layout() {
   const { user, signOut, loading } = useAuth()
+  const [companies, setCompanies] = useState<Company[]>([])
+
+  useEffect(() => {
+    if (user) {
+      getCompanies()
+        .then((allComps) => {
+          if (user.allowed_companies?.length > 0) {
+            setCompanies(allComps.filter((c) => user.allowed_companies.includes(c.id)))
+          } else {
+            setCompanies(allComps)
+          }
+        })
+        .catch(console.error)
+    }
+  }, [user])
   const location = useLocation()
 
   if (loading) return null
@@ -56,6 +73,24 @@ export default function Layout() {
                   </Link>
                 )
               })}
+
+              {companies.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 outline-none">
+                    <Building2 className="w-4 h-4" />
+                    Empresas
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-48">
+                    {companies.map((c) => (
+                      <DropdownMenuItem key={c.id} asChild>
+                        <Link to={`/company/${c.slug}`} className="w-full cursor-pointer">
+                          {c.name}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </nav>
           </div>
 

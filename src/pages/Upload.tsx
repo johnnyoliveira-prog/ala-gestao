@@ -780,44 +780,6 @@ export default function Upload() {
                         value={formatCurrency(netResult)}
                       />
                     </div>
-
-                    <div className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-6 mt-2 pt-4 border-t border-dashed">
-                      <div className="space-y-1.5">
-                        <Label>Taxa de Adm (%)</Label>
-                        <Input
-                          type="number"
-                          value={extractedData.admin_fee_pct}
-                          onChange={(e) =>
-                            setExtractedData((p: any) => ({
-                              ...p,
-                              admin_fee_pct: Number(e.target.value),
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Fundo Reserva (%)</Label>
-                        <Input
-                          type="number"
-                          value={extractedData.reserve_fee_pct}
-                          onChange={(e) =>
-                            setExtractedData((p: any) => ({
-                              ...p,
-                              reserve_fee_pct: Number(e.target.value),
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div className="col-span-1 sm:col-span-2 p-4 rounded-xl bg-slate-900 text-white mt-2 flex items-center justify-between shadow-md">
-                      <div>
-                        <p className="text-slate-300 text-sm font-medium">Total a Repassar</p>
-                      </div>
-                      <div className="text-2xl font-bold tracking-tight">
-                        {formatCurrency(totalTransfer)}
-                      </div>
-                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label>Observações / Recebíveis Futuros</Label>

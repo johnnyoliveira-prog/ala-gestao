@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Building2, AlertCircle, PlusCircle, LayoutDashboard } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
 import {
   getCompanyBySlug,
   getCompanyDreData,
@@ -29,6 +30,7 @@ const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', '
 
 export default function CompanyDashboard() {
   const { slug } = useParams<{ slug: string }>()
+  const { user } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -47,6 +49,11 @@ export default function CompanyDashboard() {
       if (!silent) setLoading(true)
       setError(false)
       const comp = await getCompanyBySlug(slug)
+
+      if (user?.allowed_companies?.length > 0 && !user.allowed_companies.includes(comp.id)) {
+        throw new Error('Acesso negado')
+      }
+
       setCompany(comp)
       const dres = await getCompanyDreData(comp.id)
       setAllDreData(dres)
