@@ -20,12 +20,6 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
-const getDepth = (codigo: string) => {
-  if (!codigo) return 3
-  const parts = codigo.split('.').filter((p) => p.trim().length > 0)
-  return parts.length
-}
-
 function HierarchicalTable({ data, totalValue }: { data: any[]; totalValue: number }) {
   if (data.length === 0) {
     return <div className="p-8 text-center text-slate-500">Nenhum registro encontrado.</div>
@@ -37,7 +31,7 @@ function HierarchicalTable({ data, totalValue }: { data: any[]; totalValue: numb
         <Table>
           <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm outline outline-1 outline-slate-200">
             <TableRow>
-              <TableHead className="font-semibold w-[120px]">Código</TableHead>
+              <TableHead className="font-semibold w-[100px]">Código</TableHead>
               <TableHead className="font-semibold min-w-[250px]">Descrição</TableHead>
               <TableHead className="font-semibold w-[180px]">Resumo</TableHead>
               <TableHead className="font-semibold w-[100px] text-center">Situação</TableHead>
@@ -47,20 +41,6 @@ function HierarchicalTable({ data, totalValue }: { data: any[]; totalValue: numb
           </TableHeader>
           <TableBody>
             {data.map((row, i) => {
-              const depth = getDepth(row.codigo)
-              let rowClass = ''
-              let textClass = ''
-
-              if (depth === 1) {
-                rowClass = 'bg-slate-200 hover:bg-slate-200/90'
-                textClass = 'font-bold text-slate-900'
-              } else if (depth === 2) {
-                rowClass = 'bg-slate-100 hover:bg-slate-100/90'
-                textClass = 'font-semibold text-slate-800'
-              } else {
-                textClass = 'text-slate-600'
-              }
-
               const pct = totalValue > 0 ? (row.valor / totalValue) * 100 : 0
               let pctDisplay = `${pct.toFixed(1)}%`
               if (pctDisplay === '0.0%' && row.valor === 0) pctDisplay = '-'
@@ -71,22 +51,14 @@ function HierarchicalTable({ data, totalValue }: { data: any[]; totalValue: numb
               if (desc.toUpperCase().includes('NAO USAR')) {
                 resumo = 'NAO USAR'
               } else if (desc.length > 0) {
-                resumo = desc.substring(0, 15).trim()
+                resumo = desc.substring(0, 20).trim()
               }
 
               return (
-                <TableRow key={row.codigo || row.id || i} className={rowClass}>
-                  <TableCell className={`font-medium ${textClass}`}>{row.codigo}</TableCell>
-                  <TableCell
-                    className={textClass}
-                    style={{ paddingLeft: depth > 1 ? `${(depth - 1) * 1.5}rem` : '1rem' }}
-                  >
-                    {row.descricao}
-                  </TableCell>
-                  <TableCell
-                    className="text-slate-500 text-sm truncate max-w-[180px]"
-                    title={resumo}
-                  >
+                <TableRow key={row.codigo || row.id || i} className="hover:bg-slate-50/80">
+                  <TableCell className="font-medium text-slate-700">{row.codigo}</TableCell>
+                  <TableCell className="text-slate-800 font-medium">{row.descricao}</TableCell>
+                  <TableCell className="text-slate-500 text-sm truncate max-w-[180px]" title={desc}>
                     {resumo}
                   </TableCell>
                   <TableCell className="text-center">
@@ -94,17 +66,26 @@ function HierarchicalTable({ data, totalValue }: { data: any[]; totalValue: numb
                       ATIVO
                     </span>
                   </TableCell>
-                  <TableCell className={`text-right font-medium ${textClass}`}>
+                  <TableCell className="text-right font-medium text-slate-900">
                     {formatCurrency(row.valor || 0)}
                   </TableCell>
-                  <TableCell
-                    className={`text-right ${depth <= 2 ? 'font-medium text-slate-700' : 'text-slate-500'}`}
-                  >
+                  <TableCell className="text-right text-slate-500 font-medium">
                     {pctDisplay}
                   </TableCell>
                 </TableRow>
               )
             })}
+            <TableRow className="bg-slate-100 hover:bg-slate-100 font-bold">
+              <TableCell colSpan={4} className="text-right text-slate-900 uppercase">
+                Total
+              </TableCell>
+              <TableCell className="text-right text-slate-900">
+                {formatCurrency(totalValue)}
+              </TableCell>
+              <TableCell className="text-right text-slate-900">
+                {totalValue > 0 ? '100.0%' : '-'}
+              </TableCell>
+            </TableRow>
           </TableBody>
         </Table>
       </div>
@@ -121,30 +102,70 @@ export function DataTables({ lineItems, currentDre }: DataTablesProps) {
       'total a repassar',
     ]
 
-    const aggregated = new Map<string, DreLineItem>()
-    const withoutCode: DreLineItem[] = []
+    const items = lineItems
+      .filter((item) => {
+        const descLower = (item.descricao || '').toLowerCase()
+        return !excludedTerms.some((term) => descLower.includes(term))
+      })
+      .map((item) => ({
+        ...item,
+        codigo: (item.codigo || '').replace(/\.$/, '').trim(),
+      }))
 
-    for (const item of lineItems) {
-      const descLower = (item.descricao || '').toLowerCase()
-      if (excludedTerms.some((term) => descLower.includes(term))) continue
+    const grouped = new Map<string, any>()
+    const withoutCode: any[] = []
 
-      const code = item.codigo?.trim()
-      if (code) {
-        if (aggregated.has(code)) {
-          const existing = aggregated.get(code)!
-          aggregated.set(code, { ...existing, valor: existing.valor + item.valor })
-        } else {
-          aggregated.set(code, { ...item })
+    const getParentItem = (code: string) => items.find((i) => i.codigo === code)
+
+    // Regex to capture exactly X.XX (e.g., 1.02, 2.01, 3.03) from any valid subcode
+    // Also allows X.X (e.g. 2.1) to be resilient to missing leading zeros.
+    const level2Regex = /^(\d+\.\d{1,2})(?:\.|$)/
+
+    for (const item of items) {
+      if (!item.codigo) {
+        withoutCode.push({ ...item })
+        continue
+      }
+
+      const match = item.codigo.match(level2Regex)
+      if (match) {
+        const level2 = match[1]
+
+        if (!grouped.has(level2)) {
+          const parent = getParentItem(level2)
+          grouped.set(level2, {
+            codigo: level2,
+            descricao: parent?.descricao || item.descricao,
+            parentValor: parent?.valor,
+            childrenSum: 0,
+            tipo: parent?.tipo || item.tipo,
+            id: parent?.id || item.id,
+          })
         }
-      } else {
-        const key = `val-${item.descricao}-${item.valor}`
-        if (!withoutCode.some((x) => `val-${x.descricao}-${x.valor}` === key)) {
-          withoutCode.push({ ...item })
+
+        const group = grouped.get(level2)!
+
+        if (item.codigo === level2) {
+          group.parentValor = item.valor
+          group.descricao = item.descricao
+        } else {
+          group.childrenSum += item.valor
         }
       }
     }
 
-    return [...Array.from(aggregated.values()), ...withoutCode]
+    const result = Array.from(grouped.values()).map((g) => {
+      const valor = g.parentValor !== undefined && g.parentValor > 0 ? g.parentValor : g.childrenSum
+      return {
+        id: g.id,
+        codigo: g.codigo,
+        descricao: g.descricao,
+        valor,
+        tipo: g.tipo,
+      }
+    })
+
+    return [...result, ...withoutCode]
   }, [lineItems])
 
   const sortedItems = useMemo(() => {
@@ -155,22 +176,28 @@ export function DataTables({ lineItems, currentDre }: DataTablesProps) {
     })
   }, [uniqueLineItems])
 
-  const revs = sortedItems.filter(
-    (i) => i.codigo?.startsWith('1') || i.tipo?.trim().toLowerCase() === 'receita',
-  )
-  const exps = sortedItems.filter(
-    (i) => i.codigo?.startsWith('2') || i.tipo?.trim().toLowerCase() === 'despesa',
-  )
+  const revs = sortedItems.filter((i) => {
+    const t = i.tipo?.trim().toLowerCase()
+    if (t === 'receita') return true
+    if (t === 'despesa') return false
+    const d = (i.descricao || '').toLowerCase()
+    if (d.includes('receita')) return true
+    if (d.includes('despesa') || d.includes('custo')) return false
+    return i.codigo?.startsWith('1')
+  })
 
-  const fallbackTotalRev =
-    revs.find((r) => r.codigo === '1')?.valor ||
-    revs.reduce((sum, r) => sum + (getDepth(r.codigo) === 2 ? r.valor : 0), 0)
-  const totalRevenue = fallbackTotalRev > 0 ? fallbackTotalRev : currentDre?.total_receitas || 0
+  const exps = sortedItems.filter((i) => {
+    const t = i.tipo?.trim().toLowerCase()
+    if (t === 'despesa') return true
+    if (t === 'receita') return false
+    const d = (i.descricao || '').toLowerCase()
+    if (d.includes('despesa') || d.includes('custo')) return true
+    if (d.includes('receita')) return false
+    return !i.codigo?.startsWith('1')
+  })
 
-  const fallbackTotalExp =
-    exps.find((e) => e.codigo === '2')?.valor ||
-    exps.reduce((sum, e) => sum + (getDepth(e.codigo) === 2 ? e.valor : 0), 0)
-  const totalExpenses = fallbackTotalExp > 0 ? fallbackTotalExp : currentDre?.total_despesas || 0
+  const totalRevenue = revs.reduce((sum, r) => sum + (r.valor || 0), 0)
+  const totalExpenses = exps.reduce((sum, e) => sum + (e.valor || 0), 0)
 
   return (
     <Card className="w-full">
