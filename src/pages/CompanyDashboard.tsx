@@ -213,7 +213,7 @@ export default function CompanyDashboard() {
           <KpiCards current={currentDre} previous={previousDre} />
           <TrendCharts allData={allDreData} selectedId={selectedId} />
           <CompositionCharts lineItems={lineItems} />
-          <DataTables lineItems={lineItems} />
+          <DataTables lineItems={lineItems} currentDre={currentDre} />
           <FutureReceivables dreData={currentDre} onUpdated={() => fetchData(true)} />
         </div>
       )}

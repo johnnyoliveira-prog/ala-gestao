@@ -10,11 +10,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { DreLineItem } from '@/services/dres'
+import { DreData, DreLineItem } from '@/services/dres'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface DataTablesProps {
   lineItems: DreLineItem[]
+  currentDre: DreData
 }
 
 const ITEMS_PER_PAGE = 20
@@ -23,7 +24,15 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
-function PaginatedTable({ data, type }: { data: any[]; type: 'receitas' | 'despesas' }) {
+function PaginatedTable({
+  data,
+  type,
+  totalRevenue,
+}: {
+  data: any[]
+  type: 'receitas' | 'despesas'
+  totalRevenue: number
+}) {
   const [page, setPage] = useState(1)
 
   const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE)
@@ -60,7 +69,13 @@ function PaginatedTable({ data, type }: { data: any[]; type: 'receitas' | 'despe
                   {formatCurrency(row.valor)}
                 </TableCell>
                 <TableCell className="text-right text-slate-500">
-                  {row.percentual?.toFixed(1)}%
+                  {(row.percentual
+                    ? row.percentual
+                    : totalRevenue > 0
+                      ? (row.valor / totalRevenue) * 100
+                      : 0
+                  ).toFixed(1)}
+                  %
                 </TableCell>
               </TableRow>
             ))}
@@ -98,9 +113,10 @@ function PaginatedTable({ data, type }: { data: any[]; type: 'receitas' | 'despe
   )
 }
 
-export function DataTables({ lineItems }: DataTablesProps) {
-  const revs = lineItems.filter((i) => i.tipo === 'receita')
-  const exps = lineItems.filter((i) => i.tipo === 'despesa')
+export function DataTables({ lineItems, currentDre }: DataTablesProps) {
+  const revs = lineItems.filter((i) => i.tipo?.toLowerCase() === 'receita')
+  const exps = lineItems.filter((i) => i.tipo?.toLowerCase() === 'despesa')
+  const totalRevenue = currentDre?.total_receitas || 0
 
   return (
     <Card className="w-full">
@@ -115,11 +131,11 @@ export function DataTables({ lineItems }: DataTablesProps) {
 
           <div className="p-4 sm:p-0 sm:pt-6">
             <TabsContent value="receitas" className="m-0">
-              <PaginatedTable data={revs} type="receitas" />
+              <PaginatedTable data={revs} type="receitas" totalRevenue={totalRevenue} />
             </TabsContent>
 
             <TabsContent value="despesas" className="m-0">
-              <PaginatedTable data={exps} type="despesas" />
+              <PaginatedTable data={exps} type="despesas" totalRevenue={totalRevenue} />
             </TabsContent>
           </div>
         </Tabs>
