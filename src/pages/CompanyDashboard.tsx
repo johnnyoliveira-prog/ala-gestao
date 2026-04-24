@@ -22,7 +22,6 @@ import {
 
 import { KpiCards } from '@/components/dashboard/KpiCards'
 import { TrendCharts } from '@/components/dashboard/TrendCharts'
-import { CompositionCharts } from '@/components/dashboard/CompositionCharts'
 import { DataTables } from '@/components/dashboard/DataTables'
 import { FutureReceivables } from '@/components/dashboard/FutureReceivables'
 
@@ -220,7 +219,6 @@ export default function CompanyDashboard() {
         <div className="space-y-6 animate-fade-in-up">
           <KpiCards current={currentDre} previous={previousDre} />
           <TrendCharts allData={allDreData} selectedId={selectedId} />
-          <CompositionCharts lineItems={lineItems} />
           <DataTables lineItems={lineItems} currentDre={currentDre} />
           <FutureReceivables dreData={currentDre} onUpdated={() => fetchData(true)} />
         </div>
