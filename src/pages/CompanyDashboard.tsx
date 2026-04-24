@@ -107,9 +107,7 @@ export default function CompanyDashboard() {
           <Skeleton className="h-10 w-1/3" />
           <Skeleton className="h-10 w-32" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-          <Skeleton className="h-28" />
-          <Skeleton className="h-28" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Skeleton className="h-28" />
           <Skeleton className="h-28" />
           <Skeleton className="h-28" />
@@ -195,9 +193,7 @@ export default function CompanyDashboard() {
 
       {detailsLoading || !currentDre ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-            <Skeleton className="h-28" />
-            <Skeleton className="h-28" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Skeleton className="h-28" />
             <Skeleton className="h-28" />
             <Skeleton className="h-28" />

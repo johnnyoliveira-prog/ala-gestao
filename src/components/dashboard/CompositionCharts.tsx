@@ -23,18 +23,53 @@ const formatCurrency = (value: number) => {
 }
 
 function processPieData(items: DreLineItem[], tipo: string) {
-  const filtered = items.filter((i) => i.tipo === tipo)
-  const grouped = filtered.reduce(
+  const filtered = items.filter((i) => i.tipo?.trim().toLowerCase() === tipo.toLowerCase())
+
+  const seen = new Set<string>()
+  const excludedTerms = ['valor repassado aos investidores', 'distribuição aos sócios']
+
+  const uniqueItems = filtered.filter((item) => {
+    const descLower = (item.descricao || '').toLowerCase()
+    if (excludedTerms.some((term) => descLower.includes(term))) return false
+
+    const code = item.codigo?.trim()
+    const key = code ? `code-${code}` : `val-${item.descricao}-${item.valor}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+
+  const codes = new Set(uniqueItems.map((i) => i.codigo?.trim()).filter(Boolean))
+  const leafItems = uniqueItems.filter((i) => {
+    const code = i.codigo?.trim()
+    if (!code) return true
+    for (const c of codes) {
+      if (c !== code && c.startsWith(code + '.')) {
+        return false
+      }
+    }
+    return true
+  })
+
+  const grouped = leafItems.reduce(
     (acc, curr) => {
-      const cat = curr.categoria || 'Outros'
-      acc[cat] = (acc[cat] || 0) + curr.valor
+      const code = curr.codigo?.trim() || ''
+      const parts = code.split('.').filter((p) => p.length > 0)
+      const prefix = parts.length > 0 ? parts.slice(0, 2).join('.') : 'Outros'
+
+      acc[prefix] = (acc[prefix] || 0) + curr.valor
       return acc
     },
     {} as Record<string, number>,
   )
 
   return Object.entries(grouped)
-    .map(([name, value]) => ({ name, value }))
+    .map(([prefix, value]) => {
+      if (prefix === 'Outros') return { name: 'Outros', value }
+      const parentItem = uniqueItems.find((x) => x.codigo?.trim() === prefix)
+      const name = parentItem?.descricao ? `${prefix} - ${parentItem.descricao}` : prefix
+      return { name, value }
+    })
     .sort((a, b) => b.value - a.value)
 }
 

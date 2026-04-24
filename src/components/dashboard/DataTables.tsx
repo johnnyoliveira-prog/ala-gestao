@@ -121,7 +121,8 @@ export function DataTables({ lineItems, currentDre }: DataTablesProps) {
       const descLower = (item.descricao || '').toLowerCase()
       if (excludedTerms.some((term) => descLower.includes(term))) return false
 
-      const key = `${item.codigo}-${item.descricao}-${item.valor}`
+      const code = item.codigo?.trim()
+      const key = code ? `code-${code}` : `val-${item.descricao}-${item.valor}`
       if (seen.has(key)) return false
       seen.add(key)
       return true

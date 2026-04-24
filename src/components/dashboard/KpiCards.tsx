@@ -59,11 +59,8 @@ export function KpiCards({ current, previous }: KpiCardsProps) {
   const expChange = calcChange(current.total_despesas, previous?.total_despesas)
   const resChange = calcChange(current.resultado, previous?.resultado)
 
-  const transferPct =
-    current.resultado > 0 ? ((current.total_repassar / current.resultado) * 100).toFixed(1) : '0.0'
-
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-slate-500">Receita Total</CardTitle>
@@ -111,37 +108,6 @@ export function KpiCards({ current, previous }: KpiCardsProps) {
             <span className="text-xs text-slate-500">vs mês ant.</span>
             <TrendIndicator value={resChange} />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-slate-500">Fundo Reserva</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-slate-900">
-            {formatCurrency(current.taxa_reserva_valor)}
-          </div>
-          <p className="text-xs text-slate-500 mt-1 flex items-center">
-            Taxa aplicada:{' '}
-            <span className="font-medium text-slate-700 ml-1">
-              {current.taxa_reserva_percentual}%
-            </span>
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-slate-900 text-white border-none shadow-md">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-slate-300">Total a Repassar</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-white">
-            {formatCurrency(current.total_repassar)}
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            <span className="font-medium text-emerald-400">{transferPct}%</span> do resultado
-          </p>
         </CardContent>
       </Card>
     </div>
