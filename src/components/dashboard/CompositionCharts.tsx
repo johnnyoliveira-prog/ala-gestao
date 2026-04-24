@@ -22,27 +22,41 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
-function processPieData(items: DreLineItem[], tipo: string) {
-  const filtered = items.filter((i) => i.tipo?.trim().toLowerCase() === tipo.toLowerCase())
+function processPieData(items: DreLineItem[], typePrefix: string, tipoString: string) {
+  const filtered = items.filter(
+    (i) =>
+      i.codigo?.startsWith(typePrefix) || i.tipo?.trim().toLowerCase() === tipoString.toLowerCase(),
+  )
 
-  const seen = new Set<string>()
-  const excludedTerms = ['valor repassado aos investidores', 'distribuição aos sócios']
+  const excludedTerms = [
+    'valor repassado aos investidores',
+    'distribuição aos sócios',
+    'fundo reserva',
+    'total a repassar',
+  ]
 
-  const uniqueItems = filtered.filter((item) => {
+  const aggregated = new Map<string, DreLineItem>()
+  for (const item of filtered) {
     const descLower = (item.descricao || '').toLowerCase()
-    if (excludedTerms.some((term) => descLower.includes(term))) return false
+    if (excludedTerms.some((term) => descLower.includes(term))) continue
 
     const code = item.codigo?.trim()
-    const key = code ? `code-${code}` : `val-${item.descricao}-${item.valor}`
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
+    if (code) {
+      if (aggregated.has(code)) {
+        const existing = aggregated.get(code)!
+        aggregated.set(code, { ...existing, valor: existing.valor + item.valor })
+      } else {
+        aggregated.set(code, { ...item })
+      }
+    }
+  }
 
+  const uniqueItems = Array.from(aggregated.values())
   const codes = new Set(uniqueItems.map((i) => i.codigo?.trim()).filter(Boolean))
+
   const leafItems = uniqueItems.filter((i) => {
     const code = i.codigo?.trim()
-    if (!code) return true
+    if (!code) return false
     for (const c of codes) {
       if (c !== code && c.startsWith(code + '.')) {
         return false
@@ -55,7 +69,7 @@ function processPieData(items: DreLineItem[], tipo: string) {
     (acc, curr) => {
       const code = curr.codigo?.trim() || ''
       const parts = code.split('.').filter((p) => p.length > 0)
-      const prefix = parts.length > 0 ? parts.slice(0, 2).join('.') : 'Outros'
+      const prefix = parts.length >= 2 ? parts.slice(0, 2).join('.') : 'Outros'
 
       acc[prefix] = (acc[prefix] || 0) + curr.valor
       return acc
@@ -70,6 +84,7 @@ function processPieData(items: DreLineItem[], tipo: string) {
       const name = parentItem?.descricao ? `${prefix} - ${parentItem.descricao}` : prefix
       return { name, value }
     })
+    .filter((item) => item.value > 0)
     .sort((a, b) => b.value - a.value)
 }
 
@@ -86,8 +101,8 @@ const CustomTooltip = ({ active, payload }: any) => {
 }
 
 export function CompositionCharts({ lineItems }: CompositionChartsProps) {
-  const revData = useMemo(() => processPieData(lineItems, 'receita'), [lineItems])
-  const expData = useMemo(() => processPieData(lineItems, 'despesa'), [lineItems])
+  const revData = useMemo(() => processPieData(lineItems, '1', 'receita'), [lineItems])
+  const expData = useMemo(() => processPieData(lineItems, '2', 'despesa'), [lineItems])
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

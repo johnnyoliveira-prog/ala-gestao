@@ -75,7 +75,7 @@ function HierarchicalTable({ data, totalValue }: { data: any[]; totalValue: numb
               }
 
               return (
-                <TableRow key={row.id || i} className={rowClass}>
+                <TableRow key={row.codigo || row.id || i} className={rowClass}>
                   <TableCell className={`font-medium ${textClass}`}>{row.codigo}</TableCell>
                   <TableCell
                     className={textClass}
@@ -114,19 +114,37 @@ function HierarchicalTable({ data, totalValue }: { data: any[]; totalValue: numb
 
 export function DataTables({ lineItems, currentDre }: DataTablesProps) {
   const uniqueLineItems = useMemo(() => {
-    const seen = new Set<string>()
-    const excludedTerms = ['valor repassado aos investidores', 'distribuição aos sócios']
+    const excludedTerms = [
+      'valor repassado aos investidores',
+      'distribuição aos sócios',
+      'fundo reserva',
+      'total a repassar',
+    ]
 
-    return lineItems.filter((item) => {
+    const aggregated = new Map<string, DreLineItem>()
+    const withoutCode: DreLineItem[] = []
+
+    for (const item of lineItems) {
       const descLower = (item.descricao || '').toLowerCase()
-      if (excludedTerms.some((term) => descLower.includes(term))) return false
+      if (excludedTerms.some((term) => descLower.includes(term))) continue
 
       const code = item.codigo?.trim()
-      const key = code ? `code-${code}` : `val-${item.descricao}-${item.valor}`
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
+      if (code) {
+        if (aggregated.has(code)) {
+          const existing = aggregated.get(code)!
+          aggregated.set(code, { ...existing, valor: existing.valor + item.valor })
+        } else {
+          aggregated.set(code, { ...item })
+        }
+      } else {
+        const key = `val-${item.descricao}-${item.valor}`
+        if (!withoutCode.some((x) => `val-${x.descricao}-${x.valor}` === key)) {
+          withoutCode.push({ ...item })
+        }
+      }
+    }
+
+    return [...Array.from(aggregated.values()), ...withoutCode]
   }, [lineItems])
 
   const sortedItems = useMemo(() => {
@@ -137,16 +155,27 @@ export function DataTables({ lineItems, currentDre }: DataTablesProps) {
     })
   }, [uniqueLineItems])
 
-  const revs = sortedItems.filter((i) => i.tipo?.trim().toLowerCase() === 'receita')
-  const exps = sortedItems.filter((i) => i.tipo?.trim().toLowerCase() === 'despesa')
+  const revs = sortedItems.filter(
+    (i) => i.codigo?.startsWith('1') || i.tipo?.trim().toLowerCase() === 'receita',
+  )
+  const exps = sortedItems.filter(
+    (i) => i.codigo?.startsWith('2') || i.tipo?.trim().toLowerCase() === 'despesa',
+  )
 
-  const totalRevenue = currentDre?.total_receitas || 0
-  const totalExpenses = currentDre?.total_despesas || 0
+  const fallbackTotalRev =
+    revs.find((r) => r.codigo === '1')?.valor ||
+    revs.reduce((sum, r) => sum + (getDepth(r.codigo) === 2 ? r.valor : 0), 0)
+  const totalRevenue = fallbackTotalRev > 0 ? fallbackTotalRev : currentDre?.total_receitas || 0
+
+  const fallbackTotalExp =
+    exps.find((e) => e.codigo === '2')?.valor ||
+    exps.reduce((sum, e) => sum + (getDepth(e.codigo) === 2 ? e.valor : 0), 0)
+  const totalExpenses = fallbackTotalExp > 0 ? fallbackTotalExp : currentDre?.total_despesas || 0
 
   return (
     <Card className="w-full">
       <CardContent className="p-0 sm:p-6 sm:pt-6">
-        <Tabs defaultValue="despesas" className="w-full">
+        <Tabs defaultValue="receitas" className="w-full">
           <div className="px-4 pt-4 sm:p-0">
             <TabsList className="grid w-full grid-cols-2 max-w-[300px]">
               <TabsTrigger value="receitas">Receitas</TabsTrigger>

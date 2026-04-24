@@ -88,17 +88,29 @@ export default function CompanyDashboard() {
     fetchDetails()
   }, [selectedId])
 
-  const currentDre = useMemo(
-    () => allDreData.find((d) => d.id === selectedId) || null,
-    [allDreData, selectedId],
-  )
+  const currentDre = useMemo(() => {
+    const dre = allDreData.find((d) => d.id === selectedId)
+    if (!dre) return null
+    return {
+      ...dre,
+      taxa_reserva_percentual: 0,
+      taxa_reserva_valor: 0,
+      total_repassar: 0,
+    }
+  }, [allDreData, selectedId])
 
   const previousDre = useMemo(() => {
     if (!currentDre) return null
     const currentIndex = allDreData.findIndex((d) => d.id === selectedId)
-    // Array is sorted descending (-year,-month), so next item is the previous chronological record
-    return allDreData[currentIndex + 1] || null
-  }, [allDreData, selectedId])
+    const prev = allDreData[currentIndex + 1]
+    if (!prev) return null
+    return {
+      ...prev,
+      taxa_reserva_percentual: 0,
+      taxa_reserva_valor: 0,
+      total_repassar: 0,
+    }
+  }, [allDreData, selectedId, currentDre])
 
   if (loading) {
     return (
