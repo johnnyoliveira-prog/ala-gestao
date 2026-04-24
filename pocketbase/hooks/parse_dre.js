@@ -15,10 +15,6 @@ routerAdd(
       net_result: 70000,
       admin_fee_pct: 10,
       reserve_fee_pct: 5,
-      investors_data: [
-        { name: 'Sócio Majoritário', pct: 70, value: 0 },
-        { name: 'Sócio Minoritário', pct: 30, value: 0 },
-      ],
       line_items: [
         {
           tipo: 'receita',

@@ -30,6 +30,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toast } from '@/hooks/use-toast'
+import { ToastAction } from '@/components/ui/toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
@@ -98,25 +99,17 @@ export default function Upload() {
     getCompanies().then(setDbCompanies).catch(console.error)
   }, [])
 
+  const netResult = useMemo(() => {
+    if (!extractedData) return 0
+    return (Number(extractedData.total_revenue) || 0) - (Number(extractedData.total_expenses) || 0)
+  }, [extractedData?.total_revenue, extractedData?.total_expenses])
+
   const totalTransfer = useMemo(() => {
     if (!extractedData) return 0
-    const net = Number(extractedData.net_result) || 0
     const totalFeePct =
       (Number(extractedData.admin_fee_pct) || 0) + (Number(extractedData.reserve_fee_pct) || 0)
-    return net - net * (totalFeePct / 100)
-  }, [extractedData?.net_result, extractedData?.admin_fee_pct, extractedData?.reserve_fee_pct])
-
-  useEffect(() => {
-    if (extractedData) {
-      setExtractedData((prev: any) => ({
-        ...prev,
-        investors_data: prev.investors_data.map((inv: any) => ({
-          ...inv,
-          value: totalTransfer * (inv.pct / 100),
-        })),
-      }))
-    }
-  }, [totalTransfer])
+    return netResult - netResult * (totalFeePct / 100)
+  }, [netResult, extractedData?.admin_fee_pct, extractedData?.reserve_fee_pct])
 
   const validateAndSetFile = (selectedFile: File) => {
     const validTypes = [
@@ -355,10 +348,6 @@ export default function Upload() {
       net_result: totalRev - totalExp,
       admin_fee_pct: 10,
       reserve_fee_pct: 5,
-      investors_data: [
-        { name: 'Sócio Majoritário', pct: 70, value: 0 },
-        { name: 'Sócio Minoritário', pct: 30, value: 0 },
-      ],
       line_items,
     })
     setIsMapping(false)
@@ -404,11 +393,8 @@ export default function Upload() {
             ? 'xlsx'
             : 'csv'
         : ''
-      const taxa_adm_val =
-        (Number(extractedData.net_result) || 0) * ((Number(extractedData.admin_fee_pct) || 0) / 100)
-      const taxa_res_val =
-        (Number(extractedData.net_result) || 0) *
-        ((Number(extractedData.reserve_fee_pct) || 0) / 100)
+      const taxa_adm_val = netResult * ((Number(extractedData.admin_fee_pct) || 0) / 100)
+      const taxa_res_val = netResult * ((Number(extractedData.reserve_fee_pct) || 0) / 100)
 
       await saveDreFull({
         userId: user.id,
@@ -420,9 +406,9 @@ export default function Upload() {
         data: {
           total_receitas: Number(extractedData.total_revenue) || 0,
           total_despesas: Number(extractedData.total_expenses) || 0,
-          resultado: Number(extractedData.net_result) || 0,
+          resultado: netResult,
           saldo_anterior: 0,
-          resultado_acumulado: Number(extractedData.net_result) || 0,
+          resultado_acumulado: netResult,
           taxa_administracao_percentual: Number(extractedData.admin_fee_pct) || 0,
           taxa_administracao_valor: taxa_adm_val,
           taxa_reserva_percentual: Number(extractedData.reserve_fee_pct) || 0,
@@ -431,14 +417,13 @@ export default function Upload() {
           total_repassar: totalTransfer,
           recebiveis_futuros: futureReceivables,
         },
-        investors: extractedData.investors_data,
         lineItems: extractedData.line_items,
         overwriteId: idToUpdate,
       })
 
       toast({
         title: 'Sucesso',
-        description: 'DRE salvo com sucesso.',
+        description: 'DRE processada e validada com sucesso!',
         className: 'bg-emerald-50 text-emerald-900',
       })
       setCompany('')
@@ -449,8 +434,13 @@ export default function Upload() {
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Erro',
-        description: error.message || 'Ocorreu um erro inesperado.',
+        title: 'Erro ao salvar',
+        description: 'Não foi possível salvar os dados. Verifique sua conexão e tente novamente.',
+        action: (
+          <ToastAction altText="Tentar Novamente" onClick={() => performSave(idToUpdate)}>
+            Tentar Novamente
+          </ToastAction>
+        ),
       })
     } finally {
       setIsSaving(false)
@@ -616,17 +606,17 @@ export default function Upload() {
                   ) : (
                     <Calculator className="w-5 h-5 text-slate-600" />
                   )}
-                  {isMapping ? 'Mapear Colunas' : 'Dados Extraídos'}
+                  {isMapping ? 'Mapear Colunas' : 'Conferência de Valores'}
                 </CardTitle>
                 <CardDescription>
                   {isMapping
                     ? 'Vincule as colunas da planilha aos campos do sistema'
-                    : 'Valores extraídos. Ajuste se necessário.'}
+                    : 'Confirme os valores abaixo e ajuste se necessário.'}
                 </CardDescription>
               </div>
               {extractedData && (
                 <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">
-                  <CheckCircle2 className="w-3 h-3" /> Verificado
+                  <CheckCircle2 className="w-3 h-3" /> Extraído
                 </span>
               )}
             </CardHeader>
@@ -777,21 +767,17 @@ export default function Upload() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Resultado Líquido</Label>
+                      <Label>Resultado Líquido (Calculado)</Label>
                       <Input
-                        type="number"
+                        type="text"
+                        readOnly
                         className={cn(
-                          (extractedData.net_result ?? 0) >= 0
+                          'bg-slate-50',
+                          netResult >= 0
                             ? 'text-emerald-600 font-medium'
                             : 'text-red-600 font-medium',
                         )}
-                        value={extractedData.net_result}
-                        onChange={(e) =>
-                          setExtractedData((p: any) => ({
-                            ...p,
-                            net_result: Number(e.target.value),
-                          }))
-                        }
+                        value={formatCurrency(netResult)}
                       />
                     </div>
 
@@ -831,24 +817,6 @@ export default function Upload() {
                       <div className="text-2xl font-bold tracking-tight">
                         {formatCurrency(totalTransfer)}
                       </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider">
-                      Divisão de Investidores
-                    </h3>
-                    <div className="border rounded-md divide-y overflow-hidden shadow-sm">
-                      {extractedData.investors_data.map((inv: any, idx: number) => (
-                        <div key={idx} className="flex justify-between p-3 bg-slate-50/50">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-slate-700">{inv.name}</span>
-                            <span className="text-xs text-slate-500 font-medium">{inv.pct}%</span>
-                          </div>
-                          <span className="font-semibold text-slate-700">
-                            {formatCurrency(inv.value)}
-                          </span>
-                        </div>
-                      ))}
                     </div>
                   </div>
                   <div className="space-y-2">

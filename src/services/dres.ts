@@ -82,7 +82,6 @@ export const saveDreFull = async ({
   file,
   fileType,
   data,
-  investors,
   lineItems,
   overwriteId,
 }: {
@@ -93,7 +92,6 @@ export const saveDreFull = async ({
   file: File | null
   fileType: string
   data: any
-  investors: any[]
   lineItems?: any[]
   overwriteId?: string
 }) => {
@@ -130,14 +128,6 @@ export const saveDreFull = async ({
   if (overwriteId) {
     dreDataRecord = await pb.collection('dre_data').update(overwriteId, dreDataPayload)
 
-    // Delete old investors
-    const oldInvestors = await pb.collection('dre_investors').getFullList({
-      filter: `dre_data = "${overwriteId}"`,
-    })
-    for (const inv of oldInvestors) {
-      await pb.collection('dre_investors').delete(inv.id)
-    }
-
     // Delete old line items
     const oldLineItems = await pb.collection('dre_line_items').getFullList({
       filter: `dre_data = "${overwriteId}"`,
@@ -147,16 +137,6 @@ export const saveDreFull = async ({
     }
   } else {
     dreDataRecord = await pb.collection('dre_data').create(dreDataPayload)
-  }
-
-  // Save new investors
-  for (const inv of investors) {
-    await pb.collection('dre_investors').create({
-      dre_data: dreDataRecord.id,
-      investor_name: inv.name,
-      participation_percentage: inv.pct,
-      amount: inv.value,
-    })
   }
 
   // Save line items

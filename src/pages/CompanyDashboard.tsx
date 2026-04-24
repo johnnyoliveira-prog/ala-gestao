@@ -14,11 +14,9 @@ import {
   getCompanyBySlug,
   getCompanyDreData,
   getDreLineItems,
-  getDreInvestors,
   Company,
   DreData,
   DreLineItem,
-  DreInvestor,
 } from '@/services/dres'
 
 import { KpiCards } from '@/components/dashboard/KpiCards'
@@ -41,7 +39,6 @@ export default function CompanyDashboard() {
   const [selectedId, setSelectedId] = useState<string>('')
 
   const [lineItems, setLineItems] = useState<DreLineItem[]>([])
-  const [investors, setInvestors] = useState<DreInvestor[]>([])
   const [detailsLoading, setDetailsLoading] = useState(false)
 
   const fetchData = async (silent = false) => {
@@ -71,12 +68,8 @@ export default function CompanyDashboard() {
     if (!selectedId) return
     try {
       setDetailsLoading(true)
-      const [lines, invs] = await Promise.all([
-        getDreLineItems(selectedId),
-        getDreInvestors(selectedId),
-      ])
+      const lines = await getDreLineItems(selectedId)
       setLineItems(lines)
-      setInvestors(invs)
     } catch (err) {
       console.error(err)
     } finally {
@@ -213,7 +206,7 @@ export default function CompanyDashboard() {
           <KpiCards current={currentDre} previous={previousDre} />
           <TrendCharts allData={allDreData} selectedId={selectedId} />
           <CompositionCharts lineItems={lineItems} />
-          <DataTables lineItems={lineItems} investors={investors} />
+          <DataTables lineItems={lineItems} />
           <FutureReceivables dreData={currentDre} onUpdated={() => fetchData(true)} />
         </div>
       )}

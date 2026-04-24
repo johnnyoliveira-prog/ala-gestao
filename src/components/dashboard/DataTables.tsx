@@ -10,12 +10,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { DreLineItem, DreInvestor } from '@/services/dres'
+import { DreLineItem } from '@/services/dres'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface DataTablesProps {
   lineItems: DreLineItem[]
-  investors: DreInvestor[]
 }
 
 const ITEMS_PER_PAGE = 20
@@ -24,13 +23,7 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
-function PaginatedTable({
-  data,
-  type,
-}: {
-  data: any[]
-  type: 'receitas' | 'despesas' | 'investidores'
-}) {
+function PaginatedTable({ data, type }: { data: any[]; type: 'receitas' | 'despesas' }) {
   const [page, setPage] = useState(1)
 
   const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE)
@@ -46,53 +39,29 @@ function PaginatedTable({
         <Table>
           <TableHeader className="bg-slate-50">
             <TableRow>
-              {type !== 'investidores' ? (
-                <>
-                  <TableHead className="font-semibold w-[100px]">Código</TableHead>
-                  <TableHead className="font-semibold">Descrição</TableHead>
-                  <TableHead className="font-semibold">Categoria</TableHead>
-                  <TableHead className="text-right font-semibold">Valor (R$)</TableHead>
-                  <TableHead className="text-right font-semibold w-[100px]">%</TableHead>
-                </>
-              ) : (
-                <>
-                  <TableHead className="font-semibold">Nome</TableHead>
-                  <TableHead className="text-right font-semibold">Participação (%)</TableHead>
-                  <TableHead className="text-right font-semibold">Valor a Repassar</TableHead>
-                </>
-              )}
+              <TableHead className="font-semibold w-[100px]">Código</TableHead>
+              <TableHead className="font-semibold">Descrição</TableHead>
+              <TableHead className="font-semibold">Categoria</TableHead>
+              <TableHead className="text-right font-semibold">Valor (R$)</TableHead>
+              <TableHead className="text-right font-semibold w-[100px]">%</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedData.map((row, i) => (
               <TableRow key={row.id || i}>
-                {type !== 'investidores' ? (
-                  <>
-                    <TableCell className="font-medium text-slate-600">{row.codigo}</TableCell>
-                    <TableCell>{row.descricao}</TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800">
-                        {row.categoria || 'N/A'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(row.valor)}
-                    </TableCell>
-                    <TableCell className="text-right text-slate-500">
-                      {row.percentual?.toFixed(1)}%
-                    </TableCell>
-                  </>
-                ) : (
-                  <>
-                    <TableCell className="font-medium">{row.investor_name}</TableCell>
-                    <TableCell className="text-right">
-                      {row.participation_percentage?.toFixed(2)}%
-                    </TableCell>
-                    <TableCell className="text-right font-medium text-emerald-600">
-                      {formatCurrency(row.amount)}
-                    </TableCell>
-                  </>
-                )}
+                <TableCell className="font-medium text-slate-600">{row.codigo}</TableCell>
+                <TableCell>{row.descricao}</TableCell>
+                <TableCell>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800">
+                    {row.categoria || 'N/A'}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  {formatCurrency(row.valor)}
+                </TableCell>
+                <TableCell className="text-right text-slate-500">
+                  {row.percentual?.toFixed(1)}%
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -129,7 +98,7 @@ function PaginatedTable({
   )
 }
 
-export function DataTables({ lineItems, investors }: DataTablesProps) {
+export function DataTables({ lineItems }: DataTablesProps) {
   const revs = lineItems.filter((i) => i.tipo === 'receita')
   const exps = lineItems.filter((i) => i.tipo === 'despesa')
 
@@ -138,10 +107,9 @@ export function DataTables({ lineItems, investors }: DataTablesProps) {
       <CardContent className="p-0 sm:p-6 sm:pt-6">
         <Tabs defaultValue="receitas" className="w-full">
           <div className="px-4 pt-4 sm:p-0">
-            <TabsList className="grid w-full grid-cols-3 max-w-[400px]">
+            <TabsList className="grid w-full grid-cols-2 max-w-[300px]">
               <TabsTrigger value="receitas">Receitas</TabsTrigger>
               <TabsTrigger value="despesas">Despesas</TabsTrigger>
-              <TabsTrigger value="investidores">Investidores</TabsTrigger>
             </TabsList>
           </div>
 
@@ -152,10 +120,6 @@ export function DataTables({ lineItems, investors }: DataTablesProps) {
 
             <TabsContent value="despesas" className="m-0">
               <PaginatedTable data={exps} type="despesas" />
-            </TabsContent>
-
-            <TabsContent value="investidores" className="m-0">
-              <PaginatedTable data={investors} type="investidores" />
             </TabsContent>
           </div>
         </Tabs>
