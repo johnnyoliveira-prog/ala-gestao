@@ -56,12 +56,24 @@ routerAdd(
                 tipo,
                 categoria: 'Operacional',
               })
-              if (tipo === 'receita') extracted.total_revenue += valor
-              else extracted.total_expenses += valor
               hasParsedRows = true
             }
           }
         }
+      }
+
+      if (hasParsedRows) {
+        const receitas = extracted.line_items.filter((i) => i.tipo === 'receita')
+        const despesas = extracted.line_items.filter((i) => i.tipo === 'despesa')
+
+        const sumReceitas = receitas.reduce((sum, item) => sum + item.valor, 0)
+        const sumDespesas = despesas.reduce((sum, item) => sum + item.valor, 0)
+
+        const totReceita = receitas.find((item) => Math.abs(item.valor - sumReceitas / 2) < 0.01)
+        const totDespesa = despesas.find((item) => Math.abs(item.valor - sumDespesas / 2) < 0.01)
+
+        extracted.total_revenue = totReceita ? totReceita.valor : sumReceitas
+        extracted.total_expenses = totDespesa ? totDespesa.valor : sumDespesas
       }
     }
 

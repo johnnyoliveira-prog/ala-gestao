@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
@@ -20,7 +21,15 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
-function FlatTable({ data, totalValue }: { data: DreLineItem[]; totalValue: number }) {
+function FlatTable({
+  data,
+  totalValue,
+  totalizerId,
+}: {
+  data: DreLineItem[]
+  totalValue: number
+  totalizerId?: string | null
+}) {
   if (data.length === 0) {
     return <div className="p-8 text-center text-slate-500">Nenhum registro encontrado.</div>
   }
@@ -40,6 +49,7 @@ function FlatTable({ data, totalValue }: { data: DreLineItem[]; totalValue: numb
           </TableHeader>
           <TableBody>
             {data.map((row, i) => {
+              const isTotalizer = row.id === totalizerId
               const pct = totalValue > 0 ? (row.valor / totalValue) * 100 : 0
               let pctDisplay = `${pct.toFixed(1)}%`
               if (pctDisplay === '0.0%' && row.valor === 0) pctDisplay = '-'
@@ -49,8 +59,16 @@ function FlatTable({ data, totalValue }: { data: DreLineItem[]; totalValue: numb
               const isNegative = situacaoStr.includes('-')
 
               return (
-                <TableRow key={row.id || i} className="hover:bg-slate-50/80">
-                  <TableCell className="text-slate-800 font-medium">
+                <TableRow
+                  key={row.id || i}
+                  className={cn(
+                    'hover:bg-slate-50/80',
+                    isTotalizer && 'bg-blue-50/50 font-semibold text-slate-900',
+                  )}
+                >
+                  <TableCell
+                    className={cn('text-slate-800 font-medium', isTotalizer && 'text-blue-900')}
+                  >
                     {row.codigo ? `${row.codigo} - ` : ''}
                     {row.descricao}
                   </TableCell>
@@ -72,7 +90,12 @@ function FlatTable({ data, totalValue }: { data: DreLineItem[]; totalValue: numb
                   <TableCell className="text-right font-medium text-slate-900">
                     {formatCurrency(row.valor || 0)}
                   </TableCell>
-                  <TableCell className="text-right text-slate-500 font-medium">
+                  <TableCell
+                    className={cn(
+                      'text-right text-slate-500 font-medium',
+                      isTotalizer && 'text-blue-800 font-bold',
+                    )}
+                  >
                     {pctDisplay}
                   </TableCell>
                 </TableRow>
@@ -104,24 +127,31 @@ export function DataTables({ lineItems }: DataTablesProps) {
     })
   }, [lineItems])
 
-  const { revs, exps, totalRevenue, totalExpenses } = useMemo(() => {
+  const { revsInfo, expsInfo } = useMemo(() => {
+    const processCategory = (items: DreLineItem[]) => {
+      const sortFn = (a: DreLineItem, b: DreLineItem) => {
+        const aCode = a.codigo || ''
+        const bCode = b.codigo || ''
+        return aCode.localeCompare(bCode, undefined, { numeric: true, sensitivity: 'base' })
+      }
+      items.sort(sortFn)
+
+      const totalSum = items.reduce((sum, item) => sum + (item.valor || 0), 0)
+      const totalizer = items.find((item) => Math.abs((item.valor || 0) - totalSum / 2) < 0.01)
+
+      return {
+        items,
+        totalValue: totalizer ? totalizer.valor : totalSum,
+        totalizerId: totalizer?.id || null,
+      }
+    }
+
     const r = dotItems.filter((i) => i.tipo?.trim().toLowerCase() === 'receita')
     const e = dotItems.filter((i) => i.tipo?.trim().toLowerCase() === 'despesa')
 
-    const sortFn = (a: DreLineItem, b: DreLineItem) => {
-      const aCode = a.codigo || ''
-      const bCode = b.codigo || ''
-      return aCode.localeCompare(bCode, undefined, { numeric: true, sensitivity: 'base' })
-    }
-
-    r.sort(sortFn)
-    e.sort(sortFn)
-
     return {
-      revs: r,
-      exps: e,
-      totalRevenue: r.reduce((sum, item) => sum + (item.valor || 0), 0),
-      totalExpenses: e.reduce((sum, item) => sum + (item.valor || 0), 0),
+      revsInfo: processCategory(r),
+      expsInfo: processCategory(e),
     }
   }, [dotItems])
 
@@ -138,11 +168,19 @@ export function DataTables({ lineItems }: DataTablesProps) {
 
           <div className="p-4 sm:p-0 sm:pt-6">
             <TabsContent value="receitas" className="m-0 animate-fade-in">
-              <FlatTable data={revs} totalValue={totalRevenue} />
+              <FlatTable
+                data={revsInfo.items}
+                totalValue={revsInfo.totalValue}
+                totalizerId={revsInfo.totalizerId}
+              />
             </TabsContent>
 
             <TabsContent value="despesas" className="m-0 animate-fade-in">
-              <FlatTable data={exps} totalValue={totalExpenses} />
+              <FlatTable
+                data={expsInfo.items}
+                totalValue={expsInfo.totalValue}
+                totalizerId={expsInfo.totalizerId}
+              />
             </TabsContent>
           </div>
         </Tabs>

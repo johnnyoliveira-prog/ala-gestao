@@ -99,13 +99,36 @@ export default function CompanyDashboard() {
   const currentDre = useMemo(() => {
     const dre = allDreData.find((d) => d.id === selectedId)
     if (!dre) return null
+
+    // Recalculate totals to fix any legacy double-counted entries
+    let realReceitas = dre.total_receitas || 0
+    let realDespesas = dre.total_despesas || 0
+
+    if (lineItems && lineItems.length > 0) {
+      const dotItems = lineItems.filter((item) => (item.codigo || '').match(/\./g)?.length === 1)
+      const r = dotItems.filter((i) => i.tipo?.trim().toLowerCase() === 'receita')
+      const e = dotItems.filter((i) => i.tipo?.trim().toLowerCase() === 'despesa')
+
+      const getRealTotal = (items: DreLineItem[]) => {
+        const sum = items.reduce((acc, item) => acc + (item.valor || 0), 0)
+        const tot = items.find((item) => Math.abs((item.valor || 0) - sum / 2) < 0.01)
+        return tot ? tot.valor : sum
+      }
+
+      if (r.length > 0) realReceitas = getRealTotal(r)
+      if (e.length > 0) realDespesas = getRealTotal(e)
+    }
+
     return {
       ...dre,
+      total_receitas: realReceitas,
+      total_despesas: realDespesas,
+      resultado: realReceitas - realDespesas,
       taxa_reserva_percentual: 0,
       taxa_reserva_valor: 0,
       total_repassar: 0,
     }
-  }, [allDreData, selectedId])
+  }, [allDreData, selectedId, lineItems])
 
   const previousDre = useMemo(() => {
     if (!currentDre) return null
