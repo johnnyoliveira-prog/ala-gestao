@@ -1,113 +1,98 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ArrowDownIcon, ArrowUpIcon, DollarSign, TrendingDown, Activity } from 'lucide-react'
 import { DreData } from '@/services/dres'
-import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from 'lucide-react'
-import { cn } from '@/lib/utils'
-
-interface KpiCardsProps {
-  current: DreData
-  previous: DreData | null
-}
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
-const calcChange = (curr: number, prev: number | undefined) => {
-  if (!prev) return null
-  return ((curr - prev) / Math.abs(prev)) * 100
-}
+export function KpiCards({ current, previous }: { current: DreData; previous: DreData | null }) {
+  const rev = current.total_receitas || 0
+  const exp = current.total_despesas || 0
+  const res = current.resultado || 0
 
-function TrendIndicator({
-  value,
-  invertColors = false,
-}: {
-  value: number | null
-  invertColors?: boolean
-}) {
-  if (value === null)
-    return <span className="text-xs text-slate-400 font-normal ml-2">S/ dados ant.</span>
-  if (value === 0)
-    return (
-      <span className="text-xs text-slate-500 font-medium ml-2 flex items-center">
-        <MinusIcon className="w-3 h-3 mr-1" />
-        0%
-      </span>
-    )
+  const prevRev = previous?.total_receitas || 0
+  const prevExp = previous?.total_despesas || 0
+  const prevRes = previous?.resultado || 0
 
-  const isPositive = value > 0
-  const isGood = invertColors ? !isPositive : isPositive
+  const calcTrend = (curr: number, prev: number) => {
+    if (!prev) return { value: 0, isPositive: curr >= 0 }
+    const diff = curr - prev
+    const pct = (diff / Math.abs(prev)) * 100
+    return { value: pct, isPositive: diff >= 0 }
+  }
+
+  const revTrend = calcTrend(rev, prevRev)
+  const expTrend = calcTrend(exp, prevExp)
+  const resTrend = calcTrend(res, prevRes)
 
   return (
-    <span
-      className={cn(
-        'text-xs font-medium ml-2 flex items-center',
-        isGood ? 'text-emerald-600' : 'text-red-600',
-      )}
-    >
-      {isPositive ? (
-        <ArrowUpIcon className="w-3 h-3 mr-0.5" />
-      ) : (
-        <ArrowDownIcon className="w-3 h-3 mr-0.5" />
-      )}
-      {Math.abs(value).toFixed(1)}%
-    </span>
-  )
-}
-
-export function KpiCards({ current, previous }: KpiCardsProps) {
-  const revChange = calcChange(current.total_receitas, previous?.total_receitas)
-  const expChange = calcChange(current.total_despesas, previous?.total_despesas)
-  const resChange = calcChange(current.resultado, previous?.resultado)
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-slate-500">Receita Total</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-slate-600">Receita Total</CardTitle>
+          <DollarSign className="h-4 w-4 text-emerald-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-slate-900">
-            {formatCurrency(current.total_receitas)}
-          </div>
-          <div className="flex mt-1 items-center">
-            <span className="text-xs text-slate-500">vs mês ant.</span>
-            <TrendIndicator value={revChange} />
-          </div>
+          <div className="text-2xl font-bold text-slate-900">{formatCurrency(rev)}</div>
+          {previous && (
+            <p
+              className={`text-xs flex items-center mt-1 ${revTrend.isPositive ? 'text-emerald-600' : 'text-red-600'}`}
+            >
+              {revTrend.isPositive ? (
+                <ArrowUpIcon className="h-3 w-3 mr-1" />
+              ) : (
+                <ArrowDownIcon className="h-3 w-3 mr-1" />
+              )}
+              {Math.abs(revTrend.value).toFixed(1)}% em relação ao mês anterior
+            </p>
+          )}
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-slate-500">Despesa Total</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-slate-600">Despesa Total</CardTitle>
+          <TrendingDown className="h-4 w-4 text-red-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-slate-900">
-            {formatCurrency(current.total_despesas)}
-          </div>
-          <div className="flex mt-1 items-center">
-            <span className="text-xs text-slate-500">vs mês ant.</span>
-            <TrendIndicator value={expChange} invertColors />
-          </div>
+          <div className="text-2xl font-bold text-slate-900">{formatCurrency(exp)}</div>
+          {previous && (
+            <p
+              className={`text-xs flex items-center mt-1 ${!expTrend.isPositive ? 'text-emerald-600' : 'text-red-600'}`}
+            >
+              {!expTrend.isPositive ? (
+                <ArrowDownIcon className="h-3 w-3 mr-1" />
+              ) : (
+                <ArrowUpIcon className="h-3 w-3 mr-1" />
+              )}
+              {Math.abs(expTrend.value).toFixed(1)}% em relação ao mês anterior
+            </p>
+          )}
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-slate-500">Resultado Líquido</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-slate-600">Resultado Líquido</CardTitle>
+          <Activity className="h-4 w-4 text-blue-600" />
         </CardHeader>
         <CardContent>
-          <div
-            className={cn(
-              'text-2xl font-bold',
-              current.resultado >= 0 ? 'text-emerald-600' : 'text-red-600',
-            )}
-          >
-            {formatCurrency(current.resultado)}
+          <div className={`text-2xl font-bold ${res >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            {formatCurrency(res)}
           </div>
-          <div className="flex mt-1 items-center">
-            <span className="text-xs text-slate-500">vs mês ant.</span>
-            <TrendIndicator value={resChange} />
-          </div>
+          {previous && (
+            <p
+              className={`text-xs flex items-center mt-1 ${resTrend.isPositive ? 'text-emerald-600' : 'text-red-600'}`}
+            >
+              {resTrend.isPositive ? (
+                <ArrowUpIcon className="h-3 w-3 mr-1" />
+              ) : (
+                <ArrowDownIcon className="h-3 w-3 mr-1" />
+              )}
+              {Math.abs(resTrend.value).toFixed(1)}% em relação ao mês anterior
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

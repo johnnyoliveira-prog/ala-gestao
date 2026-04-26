@@ -58,10 +58,16 @@ export default function CompanyDashboard() {
       const dres = await getCompanyDreData(comp.id)
       setAllDreData(dres)
       if (dres.length > 0) {
-        setSelectedId(dres[0].id)
+        setSelectedId((prev) => {
+          if (prev && dres.some((d) => d.id === prev)) return prev
+          return dres[0].id
+        })
+      } else {
+        setSelectedId('')
       }
     } catch (err) {
       setError(true)
+      console.error(err)
     } finally {
       setLoading(false)
     }
@@ -98,28 +104,26 @@ export default function CompanyDashboard() {
 
   const currentDre = useMemo(() => {
     const dre = allDreData.find((d) => d.id === selectedId)
-    if (!dre) return null
-
-    return {
-      ...dre,
-      taxa_reserva_percentual: 0,
-      taxa_reserva_valor: 0,
-      total_repassar: 0,
-    }
+    return dre || null
   }, [allDreData, selectedId])
 
   const previousDre = useMemo(() => {
     if (!currentDre) return null
     const currentIndex = allDreData.findIndex((d) => d.id === selectedId)
     const prev = allDreData[currentIndex + 1]
-    if (!prev) return null
-    return {
-      ...prev,
-      taxa_reserva_percentual: 0,
-      taxa_reserva_valor: 0,
-      total_repassar: 0,
-    }
+    return prev || null
   }, [allDreData, selectedId, currentDre])
+
+  const filteredLineItems = useMemo(() => {
+    return lineItems
+      .filter((item) => {
+        if (!item.codigo) return false
+        // Strict hierarchy filter (X.XX format) -> exactly one dot
+        const dotsCount = (item.codigo.match(/\./g) || []).length
+        return dotsCount === 1
+      })
+      .sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true }))
+  }, [lineItems])
 
   if (loading) {
     return (
@@ -229,7 +233,7 @@ export default function CompanyDashboard() {
         <div className="space-y-6 animate-fade-in-up">
           <KpiCards current={currentDre} previous={previousDre} />
           <TrendCharts allData={allDreData} selectedId={selectedId} />
-          <DataTables lineItems={lineItems} currentDre={currentDre} />
+          <DataTables lineItems={filteredLineItems} currentDre={currentDre} />
           <FutureReceivables dreData={currentDre} onUpdated={() => fetchData(true)} />
         </div>
       )}
