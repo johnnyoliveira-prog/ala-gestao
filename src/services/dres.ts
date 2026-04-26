@@ -145,9 +145,12 @@ export const saveDreFull = async ({
       await pb.collection('dre_line_items').create({
         dre_data: dreDataRecord.id,
         tipo: item.tipo,
+        codigo: item.codigo,
         descricao: item.descricao,
         valor: item.valor,
         categoria: item.categoria || 'Operacional',
+        resumo: item.resumo || '',
+        situacao: item.situacao || '',
       })
     }
   }
@@ -173,6 +176,8 @@ export interface DreLineItem {
   tipo: string
   codigo: string
   descricao: string
+  resumo: string
+  situacao: string
   valor: number
   percentual: number
   categoria: string

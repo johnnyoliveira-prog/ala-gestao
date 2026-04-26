@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Building2, AlertCircle, PlusCircle, LayoutDashboard } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
 import {
   getCompanyBySlug,
   getCompanyDreData,
@@ -86,6 +87,14 @@ export default function CompanyDashboard() {
   useEffect(() => {
     fetchDetails()
   }, [selectedId])
+
+  useRealtime(
+    'dre_line_items',
+    () => {
+      fetchDetails()
+    },
+    !!selectedId,
+  )
 
   const currentDre = useMemo(() => {
     const dre = allDreData.find((d) => d.id === selectedId)
