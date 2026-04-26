@@ -50,7 +50,11 @@ export default function CompanyDashboard() {
       setError(false)
       const comp = await getCompanyBySlug(slug)
 
-      if (user?.allowed_companies?.length > 0 && !user.allowed_companies.includes(comp.id)) {
+      if (
+        user?.allowed_companies &&
+        user.allowed_companies.length > 0 &&
+        !user.allowed_companies.includes(comp.id)
+      ) {
         throw new Error('Acesso negado')
       }
 
@@ -150,9 +154,14 @@ export default function CompanyDashboard() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-4">
         <AlertCircle className="w-12 h-12 text-red-500" />
-        <h2 className="text-xl font-bold text-slate-800">Ocorreu um erro ao carregar os dados</h2>
-        <Button onClick={fetchData} variant="outline">
-          Tentar novamente
+        <h2 className="text-xl font-bold text-slate-800">
+          Empresa não encontrada ou acesso negado
+        </h2>
+        <p className="text-slate-500">
+          Verifique se o link está correto ou se você tem permissão para acessar esta empresa.
+        </p>
+        <Button asChild variant="outline" className="mt-4">
+          <Link to="/">Voltar para o Início</Link>
         </Button>
       </div>
     )
@@ -198,7 +207,7 @@ export default function CompanyDashboard() {
             <SelectContent>
               {allDreData.map((d) => (
                 <SelectItem key={d.id} value={d.id}>
-                  {MONTHS[d.month - 1]} {d.year}
+                  {MONTHS[(d.month || 1) - 1]} {d.year}
                 </SelectItem>
               ))}
             </SelectContent>

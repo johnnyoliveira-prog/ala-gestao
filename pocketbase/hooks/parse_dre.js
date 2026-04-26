@@ -32,7 +32,7 @@ routerAdd(
           if (dots === 1) {
             // Single Dot Rule
             const parts = codigo.split('.')
-            const isTotalizer = parts[0].length > 1 // Totalizers have prefix >= 10 (e.g. 30)
+            const isTotalizer = parts[0].length > 1 || parts[1] === '00' // Totalizers have prefix >= 10 (e.g. 30) or suffix 00 (e.g. 1.00)
             const categoria = isTotalizer ? 'Totalizador' : 'Operacional'
 
             const descricao = cols

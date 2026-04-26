@@ -21,7 +21,7 @@ export function DataTables({
   lineItems: DreLineItem[]
   currentDre: DreData
 }) {
-  const totalSum = lineItems.reduce((acc, item) => acc + (item.valor || 0), 0)
+  const totalSum = currentDre.resultado || 0
 
   return (
     <Card>
@@ -62,7 +62,7 @@ export function DataTables({
           <TableFooter>
             <TableRow className="bg-slate-100 hover:bg-slate-100">
               <TableCell colSpan={2} className="font-bold text-slate-900 text-right">
-                Soma (Itens Exibidos)
+                Resultado Líquido do Período
               </TableCell>
               <TableCell
                 className={`text-right font-bold ${totalSum >= 0 ? 'text-emerald-700' : 'text-red-700'}`}

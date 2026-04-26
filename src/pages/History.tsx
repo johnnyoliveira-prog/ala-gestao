@@ -103,7 +103,7 @@ export default function History() {
 
   const filteredRecords = records.filter(
     (r) =>
-      r.expand?.company?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.expand?.company?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.year.toString().includes(searchTerm),
   )
 
