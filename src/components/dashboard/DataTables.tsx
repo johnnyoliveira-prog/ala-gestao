@@ -122,28 +122,29 @@ export function DataTables({ lineItems }: DataTablesProps) {
   }, [lineItems])
 
   const { revsInfo, expsInfo } = useMemo(() => {
-    const processCategory = (items: DreLineItem[]) => {
+    const processCategory = (items: DreLineItem[], dbTotal: number) => {
+      // Exclude explicit totalizers to prevent double counting
+      let filteredItems = items.filter((i) => i.categoria !== 'Totalizador')
+
+      // Exclude implicit totalizers if the sum is suspiciously double
+      const sum = filteredItems.reduce((acc, item) => acc + (item.valor || 0), 0)
+      if (Math.abs(sum - dbTotal * 2) < 1 && sum > 0) {
+        const hiddenTot = filteredItems.find((item) => Math.abs((item.valor || 0) - dbTotal) < 1)
+        if (hiddenTot) {
+          filteredItems = filteredItems.filter((i) => i.id !== hiddenTot.id)
+        }
+      }
+
       const sortFn = (a: DreLineItem, b: DreLineItem) => {
         const aCode = a.codigo || ''
         const bCode = b.codigo || ''
         return aCode.localeCompare(bCode, undefined, { numeric: true, sensitivity: 'base' })
       }
-      items.sort(sortFn)
-
-      const totalizers = items.filter((i) => i.categoria === 'Totalizador')
-      let totalValue = 0
-
-      if (totalizers.length > 0) {
-        totalValue = totalizers.reduce((sum, item) => sum + (item.valor || 0), 0)
-      } else {
-        const sum = items.reduce((acc, item) => acc + (item.valor || 0), 0)
-        const tot = items.find((item) => Math.abs((item.valor || 0) - sum / 2) < 0.01)
-        totalValue = tot ? tot.valor : sum
-      }
+      filteredItems.sort(sortFn)
 
       return {
-        items,
-        totalValue,
+        items: filteredItems,
+        totalValue: dbTotal,
       }
     }
 
@@ -151,8 +152,8 @@ export function DataTables({ lineItems }: DataTablesProps) {
     const e = dotItems.filter((i) => i.tipo?.trim().toLowerCase() === 'despesa')
 
     return {
-      revsInfo: processCategory(r),
-      expsInfo: processCategory(e),
+      revsInfo: processCategory(r, currentDre.total_receitas || 0),
+      expsInfo: processCategory(e, currentDre.total_despesas || 0),
     }
   }, [dotItems])
 
