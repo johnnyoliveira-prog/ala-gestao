@@ -110,6 +110,10 @@ export default function CompanyDashboard() {
       const e = dotItems.filter((i) => i.tipo?.trim().toLowerCase() === 'despesa')
 
       const getRealTotal = (items: DreLineItem[]) => {
+        const totalizers = items.filter((i) => i.categoria === 'Totalizador')
+        if (totalizers.length > 0) {
+          return totalizers.reduce((sum, item) => sum + (item.valor || 0), 0)
+        }
         const sum = items.reduce((acc, item) => acc + (item.valor || 0), 0)
         const tot = items.find((item) => Math.abs((item.valor || 0) - sum / 2) < 0.01)
         return tot ? tot.valor : sum

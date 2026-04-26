@@ -31,6 +31,10 @@ routerAdd(
 
           if (dots === 1) {
             // Single Dot Rule
+            const parts = codigo.split('.')
+            const isTotalizer = parts[0].length > 1 // Totalizers have prefix >= 10 (e.g. 30)
+            const categoria = isTotalizer ? 'Totalizador' : 'Operacional'
+
             const descricao = cols
               .slice(1, 8)
               .filter((c) => c && c.trim() !== '')
@@ -54,7 +58,7 @@ routerAdd(
                 situacao,
                 valor,
                 tipo,
-                categoria: 'Operacional',
+                categoria,
               })
               hasParsedRows = true
             }
@@ -63,17 +67,49 @@ routerAdd(
       }
 
       if (hasParsedRows) {
-        const receitas = extracted.line_items.filter((i) => i.tipo === 'receita')
-        const despesas = extracted.line_items.filter((i) => i.tipo === 'despesa')
+        const hasRecTot = extracted.line_items.some(
+          (i) => i.tipo === 'receita' && i.categoria === 'Totalizador',
+        )
+        const hasDesTot = extracted.line_items.some(
+          (i) => i.tipo === 'despesa' && i.categoria === 'Totalizador',
+        )
 
-        const sumReceitas = receitas.reduce((sum, item) => sum + item.valor, 0)
-        const sumDespesas = despesas.reduce((sum, item) => sum + item.valor, 0)
+        let fallbackRecSum = 0
+        let fallbackDesSum = 0
+        if (!hasRecTot)
+          fallbackRecSum = extracted.line_items
+            .filter((i) => i.tipo === 'receita')
+            .reduce((s, i) => s + i.valor, 0)
+        if (!hasDesTot)
+          fallbackDesSum = extracted.line_items
+            .filter((i) => i.tipo === 'despesa')
+            .reduce((s, i) => s + i.valor, 0)
 
-        const totReceita = receitas.find((item) => Math.abs(item.valor - sumReceitas / 2) < 0.01)
-        const totDespesa = despesas.find((item) => Math.abs(item.valor - sumDespesas / 2) < 0.01)
+        let currentRecTot = fallbackRecSum
+        let currentDesTot = fallbackDesSum
 
-        extracted.total_revenue = totReceita ? totReceita.valor : sumReceitas
-        extracted.total_expenses = totDespesa ? totDespesa.valor : sumDespesas
+        for (const item of extracted.line_items) {
+          if (item.categoria === 'Totalizador') {
+            if (item.tipo === 'receita') currentRecTot = item.valor
+            if (item.tipo === 'despesa') currentDesTot = item.valor
+            item.percentual = 100
+          } else {
+            const base = item.tipo === 'receita' ? currentRecTot : currentDesTot
+            item.percentual = base > 0 ? parseFloat(((item.valor / base) * 100).toFixed(2)) : 0
+          }
+        }
+
+        extracted.total_revenue = hasRecTot
+          ? extracted.line_items
+              .filter((i) => i.tipo === 'receita' && i.categoria === 'Totalizador')
+              .reduce((s, i) => s + i.valor, 0)
+          : fallbackRecSum
+
+        extracted.total_expenses = hasDesTot
+          ? extracted.line_items
+              .filter((i) => i.tipo === 'despesa' && i.categoria === 'Totalizador')
+              .reduce((s, i) => s + i.valor, 0)
+          : fallbackDesSum
       }
     }
 
@@ -87,6 +123,7 @@ routerAdd(
           situacao: '15.760,00',
           valor: 15760.0,
           categoria: 'Operacional',
+          percentual: 100,
         },
         {
           codigo: '2.03',
@@ -96,6 +133,7 @@ routerAdd(
           situacao: '0,20',
           valor: 0.2,
           categoria: 'Operacional',
+          percentual: 0,
         },
         {
           codigo: '1.02',
@@ -105,6 +143,7 @@ routerAdd(
           situacao: '0,20',
           valor: 0.2,
           categoria: 'Operacional',
+          percentual: 0.66,
         },
         {
           codigo: '1.03',
@@ -114,6 +153,7 @@ routerAdd(
           situacao: '403,34',
           valor: 403.34,
           categoria: 'Operacional',
+          percentual: 1.34,
         },
         {
           codigo: '3.03',
@@ -123,6 +163,7 @@ routerAdd(
           situacao: '-29.668,00',
           valor: 29668.0,
           categoria: 'Operacional',
+          percentual: 98.0,
         },
       ]
       extracted.total_revenue = 15760.2

@@ -21,15 +21,7 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
-function FlatTable({
-  data,
-  totalValue,
-  totalizerId,
-}: {
-  data: DreLineItem[]
-  totalValue: number
-  totalizerId?: string | null
-}) {
+function FlatTable({ data, totalValue }: { data: DreLineItem[]; totalValue: number }) {
   if (data.length === 0) {
     return <div className="p-8 text-center text-slate-500">Nenhum registro encontrado.</div>
   }
@@ -40,6 +32,7 @@ function FlatTable({
         <Table>
           <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm outline outline-1 outline-slate-200">
             <TableRow>
+              <TableHead className="font-semibold w-[100px]">Código</TableHead>
               <TableHead className="font-semibold min-w-[250px]">Descrição</TableHead>
               <TableHead className="font-semibold w-[180px]">Resumo</TableHead>
               <TableHead className="font-semibold w-[120px] text-center">Situação</TableHead>
@@ -49,11 +42,8 @@ function FlatTable({
           </TableHeader>
           <TableBody>
             {data.map((row, i) => {
-              const isTotalizer = row.id === totalizerId
-              const pct = totalValue > 0 ? (row.valor / totalValue) * 100 : 0
-              let pctDisplay = `${pct.toFixed(1)}%`
-              if (pctDisplay === '0.0%' && row.valor === 0) pctDisplay = '-'
-              else if (pct > 0 && pct < 0.1) pctDisplay = '< 0.1%'
+              const isTotalizer = row.categoria === 'Totalizador'
+              const pctDisplay = row.percentual != null ? `${row.percentual.toFixed(1)}%` : '-'
 
               const situacaoStr = (row.situacao || '').toString()
               const isNegative = situacaoStr.includes('-')
@@ -61,15 +51,19 @@ function FlatTable({
               return (
                 <TableRow
                   key={row.id || i}
-                  className={cn(
-                    'hover:bg-slate-50/80',
-                    isTotalizer && 'bg-blue-50/50 font-semibold text-slate-900',
-                  )}
+                  className={cn('hover:bg-slate-50/80', isTotalizer && 'bg-blue-50/50')}
                 >
                   <TableCell
-                    className={cn('text-slate-800 font-medium', isTotalizer && 'text-blue-900')}
+                    className={cn(
+                      'text-slate-800 font-medium whitespace-nowrap',
+                      isTotalizer && 'text-blue-900 font-bold',
+                    )}
                   >
-                    {row.codigo ? `${row.codigo} - ` : ''}
+                    {row.codigo || '-'}
+                  </TableCell>
+                  <TableCell
+                    className={cn('text-slate-800', isTotalizer && 'text-blue-900 font-bold')}
+                  >
                     {row.descricao}
                   </TableCell>
                   <TableCell
@@ -102,7 +96,7 @@ function FlatTable({
               )
             })}
             <TableRow className="bg-slate-100 hover:bg-slate-100 font-bold">
-              <TableCell colSpan={3} className="text-right text-slate-900 uppercase">
+              <TableCell colSpan={4} className="text-right text-slate-900 uppercase">
                 Total
               </TableCell>
               <TableCell className="text-right text-slate-900">
@@ -136,13 +130,20 @@ export function DataTables({ lineItems }: DataTablesProps) {
       }
       items.sort(sortFn)
 
-      const totalSum = items.reduce((sum, item) => sum + (item.valor || 0), 0)
-      const totalizer = items.find((item) => Math.abs((item.valor || 0) - totalSum / 2) < 0.01)
+      const totalizers = items.filter((i) => i.categoria === 'Totalizador')
+      let totalValue = 0
+
+      if (totalizers.length > 0) {
+        totalValue = totalizers.reduce((sum, item) => sum + (item.valor || 0), 0)
+      } else {
+        const sum = items.reduce((acc, item) => acc + (item.valor || 0), 0)
+        const tot = items.find((item) => Math.abs((item.valor || 0) - sum / 2) < 0.01)
+        totalValue = tot ? tot.valor : sum
+      }
 
       return {
         items,
-        totalValue: totalizer ? totalizer.valor : totalSum,
-        totalizerId: totalizer?.id || null,
+        totalValue,
       }
     }
 
@@ -168,19 +169,11 @@ export function DataTables({ lineItems }: DataTablesProps) {
 
           <div className="p-4 sm:p-0 sm:pt-6">
             <TabsContent value="receitas" className="m-0 animate-fade-in">
-              <FlatTable
-                data={revsInfo.items}
-                totalValue={revsInfo.totalValue}
-                totalizerId={revsInfo.totalizerId}
-              />
+              <FlatTable data={revsInfo.items} totalValue={revsInfo.totalValue} />
             </TabsContent>
 
             <TabsContent value="despesas" className="m-0 animate-fade-in">
-              <FlatTable
-                data={expsInfo.items}
-                totalValue={expsInfo.totalValue}
-                totalizerId={expsInfo.totalizerId}
-              />
+              <FlatTable data={expsInfo.items} totalValue={expsInfo.totalValue} />
             </TabsContent>
           </div>
         </Tabs>
