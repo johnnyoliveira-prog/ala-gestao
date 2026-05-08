@@ -109,12 +109,13 @@ export default function Upload() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    if (!user) return
     setIsLoadingCompanies(true)
     getCompanies()
       .then(setDbCompanies)
-      .catch(console.error)
+      .catch((err) => console.error('Failed to fetch companies:', err))
       .finally(() => setIsLoadingCompanies(false))
-  }, [])
+  }, [user])
 
   const visibleCompanies = useMemo(() => {
     return dbCompanies
@@ -519,7 +520,20 @@ export default function Upload() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command>
+                    <Command
+                      filter={(value, search) => {
+                        const normalizedValue = value
+                          .normalize('NFD')
+                          .replace(/[\u0300-\u036f]/g, '')
+                          .toLowerCase()
+                        const normalizedSearch = search
+                          .normalize('NFD')
+                          .replace(/[\u0300-\u036f]/g, '')
+                          .toLowerCase()
+                        if (normalizedValue.includes(normalizedSearch)) return 1
+                        return 0
+                      }}
+                    >
                       <CommandInput placeholder="Buscar empresa..." />
                       <CommandList>
                         <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
@@ -527,7 +541,7 @@ export default function Upload() {
                           {visibleCompanies.map((c) => (
                             <CommandItem
                               key={c.id}
-                              value={c.name}
+                              value={`${c.name} ${c.id}`}
                               onSelect={() => {
                                 setCompany(c.id === company ? '' : c.id)
                                 setOpenCompany(false)
