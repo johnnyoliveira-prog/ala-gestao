@@ -117,13 +117,8 @@ export default function Upload() {
   }, [])
 
   const visibleCompanies = useMemo(() => {
-    if (!user) return []
-    const allowed = Array.isArray(user.allowed_companies) ? user.allowed_companies : []
-    if (allowed.length === 0) return []
-    return dbCompanies.filter(
-      (c) => allowed.includes(c.name) || allowed.includes(c.id) || allowed.includes(c.slug),
-    )
-  }, [dbCompanies, user])
+    return dbCompanies
+  }, [dbCompanies])
 
   const netResult = useMemo(() => {
     if (!extractedData) return 0
@@ -515,7 +510,7 @@ export default function Upload() {
                       className="w-full justify-between bg-white font-normal"
                     >
                       {isLoadingCompanies
-                        ? 'Carregando...'
+                        ? 'Carregando empresas...'
                         : company
                           ? visibleCompanies.find((c) => c.id === company)?.name ||
                             'Selecione a empresa...'
