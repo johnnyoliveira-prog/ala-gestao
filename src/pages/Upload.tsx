@@ -7,6 +7,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -20,6 +29,8 @@ import {
   AlertCircle,
   Calculator,
   Settings2,
+  ChevronsUpDown,
+  Check,
 } from 'lucide-react'
 import {
   Table,
@@ -70,6 +81,8 @@ const formatCurrency = (value: number) => {
 export default function Upload() {
   const { user } = useAuth()
   const [dbCompanies, setDbCompanies] = useState<Company[]>([])
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(true)
+  const [openCompany, setOpenCompany] = useState(false)
   const [company, setCompany] = useState('')
   const [month, setMonth] = useState('')
   const [year, setYear] = useState('')
@@ -96,8 +109,21 @@ export default function Upload() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    getCompanies().then(setDbCompanies).catch(console.error)
+    setIsLoadingCompanies(true)
+    getCompanies()
+      .then(setDbCompanies)
+      .catch(console.error)
+      .finally(() => setIsLoadingCompanies(false))
   }, [])
+
+  const visibleCompanies = useMemo(() => {
+    if (!user) return []
+    const allowed = Array.isArray(user.allowed_companies) ? user.allowed_companies : []
+    if (allowed.length === 0) return []
+    return dbCompanies.filter(
+      (c) => allowed.includes(c.name) || allowed.includes(c.id) || allowed.includes(c.slug),
+    )
+  }, [dbCompanies, user])
 
   const netResult = useMemo(() => {
     if (!extractedData) return 0
@@ -475,22 +501,57 @@ export default function Upload() {
               <CardTitle className="text-lg">Configuração</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
+              <div className="space-y-2 flex flex-col">
                 <Label>
                   Empresa <span className="text-red-500">*</span>
                 </Label>
-                <Select value={company} onValueChange={setCompany}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="Selecione a empresa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {dbCompanies.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={openCompany} onOpenChange={setOpenCompany}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openCompany}
+                      disabled={isLoadingCompanies}
+                      className="w-full justify-between bg-white font-normal"
+                    >
+                      {isLoadingCompanies
+                        ? 'Carregando...'
+                        : company
+                          ? visibleCompanies.find((c) => c.id === company)?.name ||
+                            'Selecione a empresa...'
+                          : 'Selecione a empresa...'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar empresa..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
+                        <CommandGroup>
+                          {visibleCompanies.map((c) => (
+                            <CommandItem
+                              key={c.id}
+                              value={c.name}
+                              onSelect={() => {
+                                setCompany(c.id === company ? '' : c.id)
+                                setOpenCompany(false)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  'mr-2 h-4 w-4',
+                                  company === c.id ? 'opacity-100' : 'opacity-0',
+                                )}
+                              />
+                              {c.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
