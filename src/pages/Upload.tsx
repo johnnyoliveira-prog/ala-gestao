@@ -79,9 +79,10 @@ const formatCurrency = (value: number) => {
 }
 
 export default function Upload() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [dbCompanies, setDbCompanies] = useState<Company[]>([])
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(true)
+  const [errorCompanies, setErrorCompanies] = useState(false)
   const [openCompany, setOpenCompany] = useState(false)
   const [company, setCompany] = useState('')
   const [month, setMonth] = useState('')
@@ -108,14 +109,27 @@ export default function Upload() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
+  const fetchCompanies = () => {
     if (!user) return
     setIsLoadingCompanies(true)
+    setErrorCompanies(false)
     getCompanies()
       .then(setDbCompanies)
-      .catch((err) => console.error('Failed to fetch companies:', err))
+      .catch((err) => {
+        console.error('Failed to fetch companies:', err)
+        setErrorCompanies(true)
+      })
       .finally(() => setIsLoadingCompanies(false))
-  }, [user])
+  }
+
+  useEffect(() => {
+    if (authLoading) return
+    if (user) {
+      fetchCompanies()
+    } else {
+      setIsLoadingCompanies(false)
+    }
+  }, [user, authLoading])
 
   const visibleCompanies = useMemo(() => {
     return dbCompanies
@@ -501,66 +515,80 @@ export default function Upload() {
                 <Label>
                   Empresa <span className="text-red-500">*</span>
                 </Label>
-                <Popover open={openCompany} onOpenChange={setOpenCompany}>
-                  <PopoverTrigger asChild>
+                <div className="flex gap-2 items-center">
+                  <Popover open={openCompany} onOpenChange={setOpenCompany}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openCompany}
+                        disabled={isLoadingCompanies || errorCompanies}
+                        className="w-full justify-between bg-white font-normal flex-1"
+                      >
+                        {isLoadingCompanies
+                          ? 'Carregando empresas...'
+                          : errorCompanies
+                            ? 'Erro ao carregar empresas'
+                            : company
+                              ? visibleCompanies.find((c) => c.id === company)?.name ||
+                                'Selecione a empresa...'
+                              : 'Selecione a empresa...'}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command
+                        filter={(value, search) => {
+                          const normalizedValue = value
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')
+                            .toLowerCase()
+                          const normalizedSearch = search
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')
+                            .toLowerCase()
+                          if (normalizedValue.includes(normalizedSearch)) return 1
+                          return 0
+                        }}
+                      >
+                        <CommandInput placeholder="Buscar empresa..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
+                          <CommandGroup>
+                            {visibleCompanies.map((c) => (
+                              <CommandItem
+                                key={c.id}
+                                value={`${c.name} ${c.id}`}
+                                onSelect={() => {
+                                  setCompany(c.id === company ? '' : c.id)
+                                  setOpenCompany(false)
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    'mr-2 h-4 w-4',
+                                    company === c.id ? 'opacity-100' : 'opacity-0',
+                                  )}
+                                />
+                                {c.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {errorCompanies && (
                     <Button
                       variant="outline"
-                      role="combobox"
-                      aria-expanded={openCompany}
-                      disabled={isLoadingCompanies}
-                      className="w-full justify-between bg-white font-normal"
+                      onClick={fetchCompanies}
+                      className="shrink-0 text-amber-600 border-amber-200 hover:bg-amber-50"
+                      title="Tentar Novamente"
                     >
-                      {isLoadingCompanies
-                        ? 'Carregando empresas...'
-                        : company
-                          ? visibleCompanies.find((c) => c.id === company)?.name ||
-                            'Selecione a empresa...'
-                          : 'Selecione a empresa...'}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      Tentar Novamente
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command
-                      filter={(value, search) => {
-                        const normalizedValue = value
-                          .normalize('NFD')
-                          .replace(/[\u0300-\u036f]/g, '')
-                          .toLowerCase()
-                        const normalizedSearch = search
-                          .normalize('NFD')
-                          .replace(/[\u0300-\u036f]/g, '')
-                          .toLowerCase()
-                        if (normalizedValue.includes(normalizedSearch)) return 1
-                        return 0
-                      }}
-                    >
-                      <CommandInput placeholder="Buscar empresa..." />
-                      <CommandList>
-                        <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
-                        <CommandGroup>
-                          {visibleCompanies.map((c) => (
-                            <CommandItem
-                              key={c.id}
-                              value={`${c.name} ${c.id}`}
-                              onSelect={() => {
-                                setCompany(c.id === company ? '' : c.id)
-                                setOpenCompany(false)
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  'mr-2 h-4 w-4',
-                                  company === c.id ? 'opacity-100' : 'opacity-0',
-                                )}
-                              />
-                              {c.name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
