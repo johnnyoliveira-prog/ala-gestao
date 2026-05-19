@@ -209,6 +209,7 @@ export const getCompanyDreData = async (companyId: string): Promise<DreData[]> =
   return await pb.collection('dre_data').getFullList<DreData>({
     filter: `company="${companyId}"`,
     sort: '-year,-month',
+    expand: 'company,upload',
   })
 }
 
