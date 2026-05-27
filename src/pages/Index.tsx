@@ -17,6 +17,7 @@ import { GlobalAlerts } from '@/components/dashboard/GlobalAlerts'
 import { GlobalBarCharts } from '@/components/dashboard/GlobalBarCharts'
 import { GlobalTrends } from '@/components/dashboard/GlobalTrends'
 import { GlobalCompanyTable } from '@/components/dashboard/GlobalCompanyTable'
+import { PerformanceRanking } from '@/components/dashboard/PerformanceRanking'
 
 const MONTHS = [
   { value: 1, label: 'Janeiro' },
@@ -155,7 +156,14 @@ export default function Index() {
 
           {currentData.length > 0 ? (
             <div className="space-y-6">
-              <GlobalBarCharts currentData={currentData} companies={companies} />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <GlobalBarCharts currentData={currentData} companies={companies} />
+                </div>
+                <div>
+                  <PerformanceRanking currentData={currentData} companies={companies} />
+                </div>
+              </div>
               <GlobalTrends
                 currentData={currentData}
                 allData={allData}

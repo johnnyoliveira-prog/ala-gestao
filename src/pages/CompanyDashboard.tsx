@@ -161,7 +161,7 @@ export default function CompanyDashboard() {
           Verifique se o link está correto ou se você tem permissão para acessar esta empresa.
         </p>
         <Button asChild variant="outline" className="mt-4">
-          <Link to="/">Voltar para o Início</Link>
+          <Link to="/dashboard">Voltar para o Dashboard</Link>
         </Button>
       </div>
     )
@@ -177,7 +177,7 @@ export default function CompanyDashboard() {
           dashboard.
         </p>
         <Button asChild className="mt-4 bg-emerald-600 hover:bg-emerald-700">
-          <Link to="/">
+          <Link to="/upload">
             <PlusCircle className="w-4 h-4 mr-2" />
             Novo Upload
           </Link>
@@ -217,7 +217,7 @@ export default function CompanyDashboard() {
             variant="default"
             className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800"
           >
-            <Link to="/">
+            <Link to="/upload">
               <PlusCircle className="w-4 h-4 mr-2" />
               Novo Upload
             </Link>

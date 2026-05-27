@@ -23,10 +23,11 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route element={<Layout />}>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Index />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/history" element={<History />} />
-            <Route path="/company/:slug" element={<CompanyDashboard />} />
+            <Route path="/dashboard/:slug" element={<CompanyDashboard />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

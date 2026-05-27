@@ -74,7 +74,7 @@ export function GlobalAlerts({ currentData, companies }: GlobalAlertsProps) {
             <ul className="space-y-1">
               {negative.map((d) => (
                 <li key={d.id} className="text-xs font-medium text-red-900 flex justify-between">
-                  <Link to={`/company/${d.expand?.company?.slug}`} className="hover:underline">
+                  <Link to={`/dashboard/${d.expand?.company?.slug}`} className="hover:underline">
                     {d.expand?.company?.name}
                   </Link>
                   <span>{formatCurrency(d.resultado)}</span>
@@ -97,7 +97,7 @@ export function GlobalAlerts({ currentData, companies }: GlobalAlertsProps) {
             <ul className="space-y-1">
               {abnormal.map((d) => (
                 <li key={d.id} className="text-xs font-medium text-indigo-900 flex justify-between">
-                  <Link to={`/company/${d.expand?.company?.slug}`} className="hover:underline">
+                  <Link to={`/dashboard/${d.expand?.company?.slug}`} className="hover:underline">
                     {d.expand?.company?.name}
                   </Link>
                   <span>{formatCurrency(d.total_despesas)}</span>

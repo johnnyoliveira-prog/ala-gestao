@@ -1,24 +1,63 @@
 import { Outlet, Link, useLocation, Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { LayoutDashboard, UploadCloud, History, LogOut, User, Building2, Menu } from 'lucide-react'
+import {
+  LayoutDashboard,
+  UploadCloud,
+  History,
+  LogOut,
+  Building2,
+  Menu,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  X,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useState, useEffect } from 'react'
-import { getCompanies, Company } from '@/services/dres'
+import { useState, useEffect, useMemo } from 'react'
+import { getCompanies, Company, getDreData, DreData } from '@/services/dres'
 import { toast } from 'sonner'
+
+function NavLink({ to, icon: Icon, label, collapsed, indicator }: any) {
+  const location = useLocation()
+  const isActive = location.pathname === to
+
+  return (
+    <Link
+      to={to}
+      className={cn(
+        'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors relative group',
+        isActive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white',
+        collapsed ? 'justify-center' : 'justify-start',
+      )}
+      title={collapsed ? label : undefined}
+    >
+      <Icon className="w-5 h-5 shrink-0" />
+      {!collapsed && <span className="truncate">{label}</span>}
+      {indicator && (
+        <span
+          className={cn(
+            'absolute rounded-full',
+            collapsed ? 'top-1 right-1 w-2 h-2' : 'right-3 w-2 h-2 top-1/2 -translate-y-1/2',
+            indicator === 'green' ? 'bg-emerald-500' : 'bg-red-500',
+          )}
+        />
+      )}
+    </Link>
+  )
+}
 
 export default function Layout() {
   const { user, signOut, loading } = useAuth()
   const [companies, setCompanies] = useState<Company[]>([])
+  const [currentMonthData, setCurrentMonthData] = useState<DreData[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  const currentMonth = new Date().getMonth() + 1
+  const currentYear = new Date().getFullYear()
 
   useEffect(() => {
     if (user) {
@@ -31,9 +70,19 @@ export default function Layout() {
           }
         })
         .catch(console.error)
+
+      getDreData()
+        .then((dres) => {
+          const current = dres.filter((d) => d.month === currentMonth && d.year === currentYear)
+          setCurrentMonthData(current)
+        })
+        .catch(console.error)
     }
-  }, [user])
-  const location = useLocation()
+  }, [user, currentMonth, currentYear])
+
+  const filteredCompanies = useMemo(() => {
+    return companies.filter((c) => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  }, [companies, searchTerm])
 
   if (loading) return null
   if (!user) return <Navigate to="/login" replace />
@@ -43,172 +92,155 @@ export default function Layout() {
     toast.success('Você saiu do sistema com sucesso.')
   }
 
-  const navLinks = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Upload DRE', path: '/upload', icon: UploadCloud },
-    { name: 'Histórico', path: '/history', icon: History },
-  ]
-
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
-      <header className="sticky top-0 z-40 w-full bg-white border-b border-slate-200 shadow-sm">
-        <div className="container mx-auto max-w-[1200px] h-16 flex items-center justify-between px-4">
-          <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-2 group">
-              <span className="text-2xl font-black tracking-tighter text-slate-900 group-hover:text-slate-700 transition-colors">
-                GRUPO<span className="text-slate-500">ALA</span>
-              </span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-1">
-              {navLinks.map((link) => {
-                const Icon = link.icon
-                const isActive = location.pathname === link.path
+    <div className="min-h-screen flex bg-slate-50 font-sans overflow-hidden">
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          'fixed md:static inset-y-0 left-0 bg-slate-900 text-slate-300 flex flex-col transition-all duration-300 z-50',
+          sidebarOpen ? 'w-72 translate-x-0' : '-translate-x-full md:translate-x-0 md:w-20',
+        )}
+      >
+        <div className="h-16 flex items-center justify-between px-4 bg-slate-950 shrink-0">
+          {sidebarOpen ? (
+            <span className="text-xl font-black tracking-tighter text-white">
+              GRUPO<span className="text-slate-500">ALA</span>
+            </span>
+          ) : (
+            <span className="text-xl font-black tracking-tighter text-white mx-auto">ALA</span>
+          )}
+          {sidebarOpen && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden text-slate-400"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-2 px-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-900 [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
+          {/* Main Links */}
+          <NavLink
+            to="/dashboard"
+            icon={LayoutDashboard}
+            label="Dashboard Geral"
+            collapsed={!sidebarOpen}
+          />
+          <NavLink to="/upload" icon={UploadCloud} label="Upload DRE" collapsed={!sidebarOpen} />
+          <NavLink to="/history" icon={History} label="Histórico" collapsed={!sidebarOpen} />
+
+          {/* SPEs */}
+          <div className="mt-6 mb-2 flex-1">
+            {sidebarOpen && (
+              <div className="px-3 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Empresas (SPEs)
+              </div>
+            )}
+            {sidebarOpen && (
+              <div className="px-3 mb-4">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-2 top-2.5 text-slate-500" />
+                  <Input
+                    placeholder="Buscar empresa..."
+                    className="h-9 pl-8 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500 focus-visible:ring-slate-600"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              {filteredCompanies.map((c) => {
+                const hasDre = currentMonthData.some((d) => d.company === c.id)
                 return (
-                  <Link
-                    key={link.path}
-                    to={link.path}
-                    className={cn(
-                      'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-slate-100 text-slate-900'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
-                    )}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {link.name}
-                  </Link>
+                  <NavLink
+                    key={c.id}
+                    to={`/dashboard/${c.slug}`}
+                    icon={Building2}
+                    label={c.name}
+                    collapsed={!sidebarOpen}
+                    indicator={hasDre ? 'green' : 'red'}
+                  />
                 )
               })}
-
-              {companies.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 outline-none">
-                    <Building2 className="w-4 h-4" />
-                    Empresas
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-48">
-                    {companies.map((c) => (
-                      <DropdownMenuItem key={c.id} asChild>
-                        <Link to={`/company/${c.slug}`} className="w-full cursor-pointer">
-                          {c.name}
-                        </Link>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              {sidebarOpen && filteredCompanies.length === 0 && (
+                <p className="text-sm text-slate-500 px-3 py-2">Nenhuma empresa encontrada.</p>
               )}
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/* Mobile Nav */}
-            <div className="md:hidden">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-9 w-9">
-                    <Menu className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {user?.name || 'Administrador'}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {navLinks.map((link) => {
-                    const Icon = link.icon
-                    return (
-                      <DropdownMenuItem key={link.path} asChild>
-                        <Link
-                          to={link.path}
-                          className="w-full cursor-pointer flex items-center gap-2"
-                        >
-                          <Icon className="w-4 h-4" />
-                          {link.name}
-                        </Link>
-                      </DropdownMenuItem>
-                    )
-                  })}
-                  {companies.length > 0 && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel>Empresas</DropdownMenuLabel>
-                      {companies.map((c) => (
-                        <DropdownMenuItem key={c.id} asChild>
-                          <Link to={`/company/${c.slug}`} className="w-full cursor-pointer pl-6">
-                            {c.name}
-                          </Link>
-                        </DropdownMenuItem>
-                      ))}
-                    </>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleLogout}
-                    className="text-red-600 cursor-pointer flex items-center gap-2"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span>Sair do sistema</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {/* Desktop User Menu */}
-            <div className="hidden md:block">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                    <Avatar className="h-9 w-9 border border-slate-200">
-                      <AvatarFallback className="bg-slate-900 text-white">
-                        {user?.name?.charAt(0) || <User className="w-4 h-4" />}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {user?.name || 'Administrador'}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Sair do sistema</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
           </div>
         </div>
-      </header>
 
-      <main className="flex-1 container mx-auto max-w-[1200px] px-4 py-8">
-        <Outlet />
-      </main>
-
-      <footer className="bg-white border-t border-slate-200 py-8 mt-auto">
-        <div className="container mx-auto max-w-[1200px] px-4 flex flex-col md:flex-row items-center justify-between text-slate-500">
-          <div className="flex items-center gap-3 mb-4 md:mb-0">
-            <span className="text-xl font-bold text-slate-800">ALA</span>
-            <div className="h-6 w-px bg-slate-300"></div>
-            <span className="text-xs font-semibold tracking-widest uppercase">
-              Quem conhece, confia.
-            </span>
-          </div>
-          <p className="text-sm">
-            &copy; {new Date().getFullYear()} Grupo ALA. Todos os direitos reservados.
-          </p>
+        {/* Sidebar Footer */}
+        <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between shrink-0">
+          {sidebarOpen && (
+            <div className="flex items-center gap-3 overflow-hidden">
+              <Avatar className="h-8 w-8 bg-slate-800 text-slate-300">
+                <AvatarFallback>{user?.name?.charAt(0) || 'U'}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col truncate">
+                <span className="text-sm font-medium text-slate-200 truncate">{user?.name}</span>
+                <span
+                  className="text-xs text-slate-500 truncate cursor-pointer hover:underline"
+                  onClick={handleLogout}
+                >
+                  Sair do sistema
+                </span>
+              </div>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-slate-400 hover:text-white hidden md:flex"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            {sidebarOpen ? (
+              <ChevronLeft className="w-5 h-5" />
+            ) : (
+              <ChevronRight className="w-5 h-5" />
+            )}
+          </Button>
+          {!sidebarOpen && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-red-400 hover:text-red-300 w-full"
+              onClick={handleLogout}
+              title="Sair"
+            >
+              <LogOut className="w-5 h-5" />
+            </Button>
+          )}
         </div>
-      </footer>
+      </aside>
+
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Top header for mobile */}
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 shrink-0 md:hidden">
+          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+            <Menu className="w-5 h-5" />
+          </Button>
+          <span className="text-xl font-black tracking-tighter text-slate-900">
+            GRUPO<span className="text-slate-500">ALA</span>
+          </span>
+          <div className="w-9" /> {/* Spacer */}
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }

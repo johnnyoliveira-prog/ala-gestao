@@ -47,7 +47,7 @@ export function GlobalCompanyTable({ currentData, companies }: GlobalCompanyTabl
                   <TableRow
                     key={c.id}
                     className="cursor-pointer hover:bg-slate-50 transition-colors"
-                    onClick={() => navigate(`/company/${c.slug}`)}
+                    onClick={() => navigate(`/dashboard/${c.slug}`)}
                   >
                     <TableCell className="font-medium text-slate-900">{c.name}</TableCell>
                     <TableCell className="text-right text-slate-600">
