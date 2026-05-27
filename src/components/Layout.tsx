@@ -10,10 +10,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { LayoutDashboard, UploadCloud, History, LogOut, User, Building2 } from 'lucide-react'
+import { LayoutDashboard, UploadCloud, History, LogOut, User, Building2, Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useEffect } from 'react'
 import { getCompanies, Company } from '@/services/dres'
+import { toast } from 'sonner'
 
 export default function Layout() {
   const { user, signOut, loading } = useAuth()
@@ -36,6 +37,11 @@ export default function Layout() {
 
   if (loading) return null
   if (!user) return <Navigate to="/login" replace />
+
+  const handleLogout = () => {
+    signOut()
+    toast.success('Você saiu do sistema com sucesso.')
+  }
 
   const navLinks = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -95,32 +101,92 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                  <Avatar className="h-9 w-9 border border-slate-200">
-                    <AvatarFallback className="bg-slate-900 text-white">
-                      {user?.name?.charAt(0) || <User className="w-4 h-4" />}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {user?.name || 'Administrador'}
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut} className="text-red-600 cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sair do sistema</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Mobile Nav */}
+            <div className="md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9">
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {user?.name || 'Administrador'}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {navLinks.map((link) => {
+                    const Icon = link.icon
+                    return (
+                      <DropdownMenuItem key={link.path} asChild>
+                        <Link
+                          to={link.path}
+                          className="w-full cursor-pointer flex items-center gap-2"
+                        >
+                          <Icon className="w-4 h-4" />
+                          {link.name}
+                        </Link>
+                      </DropdownMenuItem>
+                    )
+                  })}
+                  {companies.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel>Empresas</DropdownMenuLabel>
+                      {companies.map((c) => (
+                        <DropdownMenuItem key={c.id} asChild>
+                          <Link to={`/company/${c.slug}`} className="w-full cursor-pointer pl-6">
+                            {c.name}
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="text-red-600 cursor-pointer flex items-center gap-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Sair do sistema</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Desktop User Menu */}
+            <div className="hidden md:block">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                    <Avatar className="h-9 w-9 border border-slate-200">
+                      <AvatarFallback className="bg-slate-900 text-white">
+                        {user?.name?.charAt(0) || <User className="w-4 h-4" />}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {user?.name || 'Administrador'}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sair do sistema</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>
