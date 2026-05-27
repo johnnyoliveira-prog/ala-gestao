@@ -225,29 +225,61 @@ export const updateFutureReceivables = async (id: string, text: string): Promise
 }
 
 export const deleteDreData = async (dreDataId: string): Promise<void> => {
-  const record = await pb.collection('dre_data').getOne<DreData>(dreDataId)
+  let record: DreData | null = null
 
-  const items = await pb
-    .collection('dre_line_items')
-    .getFullList({ filter: `dre_data="${dreDataId}"` })
-  for (const item of items) {
-    await pb.collection('dre_line_items').delete(item.id)
+  try {
+    record = await pb.collection('dre_data').getOne<DreData>(dreDataId)
+  } catch (error: any) {
+    if (error?.status !== 404) throw error
   }
 
-  const invs = await pb
-    .collection('dre_investors')
-    .getFullList({ filter: `dre_data="${dreDataId}"` })
-  for (const inv of invs) {
-    await pb.collection('dre_investors').delete(inv.id)
+  try {
+    const items = await pb
+      .collection('dre_line_items')
+      .getFullList({ filter: `dre_data="${dreDataId}"` })
+
+    for (const item of items) {
+      if (item.id) {
+        try {
+          await pb.collection('dre_line_items').delete(item.id)
+        } catch (e: any) {
+          if (e?.status !== 404) console.warn(`Could not delete line item ${item.id}`, e)
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Could not fetch line items for deletion', e)
   }
 
-  await pb.collection('dre_data').delete(dreDataId)
+  try {
+    const invs = await pb
+      .collection('dre_investors')
+      .getFullList({ filter: `dre_data="${dreDataId}"` })
 
-  if (record.upload) {
+    for (const inv of invs) {
+      if (inv.id) {
+        try {
+          await pb.collection('dre_investors').delete(inv.id)
+        } catch (e: any) {
+          if (e?.status !== 404) console.warn(`Could not delete investor ${inv.id}`, e)
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Could not fetch investors for deletion', e)
+  }
+
+  try {
+    await pb.collection('dre_data').delete(dreDataId)
+  } catch (error: any) {
+    if (error?.status !== 404) throw error
+  }
+
+  if (record?.upload) {
     try {
       await pb.collection('dre_uploads').delete(record.upload)
-    } catch (e) {
-      console.warn('Could not delete upload record', e)
+    } catch (e: any) {
+      if (e?.status !== 404) console.warn('Could not delete upload record', e)
     }
   }
 }

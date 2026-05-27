@@ -86,6 +86,7 @@ export default function History() {
     if (!deleteId) return
     setIsDeleting(true)
     try {
+      setRecords((prev) => prev.filter((r) => r.id !== deleteId))
       await deleteDreData(deleteId)
       toast({
         title: 'Sucesso',
@@ -93,9 +94,9 @@ export default function History() {
         className: 'bg-emerald-50 border-emerald-200 text-emerald-900',
       })
       setDeleteId(null)
-      loadData()
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao excluir o registro.' })
+      loadData()
     } finally {
       setIsDeleting(false)
     }
