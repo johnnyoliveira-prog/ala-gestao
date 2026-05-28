@@ -12,12 +12,14 @@ export function KpiCards({ current, previous }: { current: DreData; previous: Dr
   const res = current.resultado || 0
   const admin = current.taxa_administracao_valor || 0
   const reserve = current.taxa_reserva_valor || 0
+  const repasse = current.total_repassar || 0
 
   const prevRev = previous?.total_receitas || 0
   const prevExp = previous?.total_despesas || 0
   const prevRes = previous?.resultado || 0
   const prevAdmin = previous?.taxa_administracao_valor || 0
   const prevReserve = previous?.taxa_reserva_valor || 0
+  const prevRepasse = previous?.total_repassar || 0
 
   const calcTrend = (curr: number, prev: number) => {
     if (!prev) return { value: 0, isPositive: curr >= 0 }
@@ -31,9 +33,10 @@ export function KpiCards({ current, previous }: { current: DreData; previous: Dr
   const resTrend = calcTrend(res, prevRes)
   const adminTrend = calcTrend(admin, prevAdmin)
   const reserveTrend = calcTrend(reserve, prevReserve)
+  const repasseTrend = calcTrend(repasse, prevRepasse)
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-slate-600">Receita Total</CardTitle>
@@ -137,6 +140,26 @@ export function KpiCards({ current, previous }: { current: DreData; previous: Dr
                 <ArrowDownIcon className="h-3 w-3 mr-1" />
               )}
               {Math.abs(reserveTrend.value).toFixed(1)}% em relação ao mês anterior
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-slate-600">Total a Repassar</CardTitle>
+          <DollarSign className="h-4 w-4 text-emerald-600" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-emerald-700">{formatCurrency(repasse)}</div>
+          {previous && (
+            <p className="text-xs flex items-center mt-1 text-slate-500">
+              {repasseTrend.isPositive ? (
+                <ArrowUpIcon className="h-3 w-3 mr-1" />
+              ) : (
+                <ArrowDownIcon className="h-3 w-3 mr-1" />
+              )}
+              {Math.abs(repasseTrend.value).toFixed(1)}% em relação ao mês anterior
             </p>
           )}
         </CardContent>

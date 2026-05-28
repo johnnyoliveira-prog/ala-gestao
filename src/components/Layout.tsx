@@ -134,7 +134,7 @@ export default function Layout() {
           <NavLink
             to="/dashboard"
             icon={LayoutDashboard}
-            label="Dashboard Geral"
+            label="Dashboard Geral (Grupo ALA)"
             collapsed={!sidebarOpen}
           />
           <NavLink to="/upload" icon={UploadCloud} label="Upload DRE" collapsed={!sidebarOpen} />
