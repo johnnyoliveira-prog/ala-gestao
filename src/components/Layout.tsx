@@ -1,7 +1,6 @@
 import { Outlet, Link, useLocation, Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   LayoutDashboard,
@@ -10,15 +9,15 @@ import {
   LogOut,
   Building2,
   Menu,
-  Search,
   ChevronLeft,
   ChevronRight,
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { getCompanies, Company, getDreData, DreData } from '@/services/dres'
 import { toast } from 'sonner'
+import { useRealtime } from '@/hooks/use-realtime'
 
 function NavLink({ to, icon: Icon, label, collapsed, indicator }: any) {
   const location = useLocation()
@@ -53,13 +52,12 @@ export default function Layout() {
   const { user, signOut, loading } = useAuth()
   const [companies, setCompanies] = useState<Company[]>([])
   const [currentMonthData, setCurrentMonthData] = useState<DreData[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const currentMonth = new Date().getMonth() + 1
   const currentYear = new Date().getFullYear()
 
-  useEffect(() => {
+  const loadData = () => {
     if (user) {
       getCompanies()
         .then((allComps) => {
@@ -78,11 +76,14 @@ export default function Layout() {
         })
         .catch(console.error)
     }
+  }
+
+  useEffect(() => {
+    loadData()
   }, [user, currentMonth, currentYear])
 
-  const filteredCompanies = useMemo(() => {
-    return companies.filter((c) => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  }, [companies, searchTerm])
+  useRealtime('dre_data', () => loadData())
+  useRealtime('dre_uploads', () => loadData())
 
   if (loading) return null
   if (!user) return <Navigate to="/login" replace />
@@ -139,7 +140,6 @@ export default function Layout() {
           />
           <NavLink to="/upload" icon={UploadCloud} label="Upload DRE" collapsed={!sidebarOpen} />
           <NavLink to="/history" icon={History} label="Histórico" collapsed={!sidebarOpen} />
-
           {/* SPEs */}
           <div className="mt-6 mb-2 flex-1">
             {sidebarOpen && (
@@ -147,21 +147,8 @@ export default function Layout() {
                 Empresas (SPEs)
               </div>
             )}
-            {sidebarOpen && (
-              <div className="px-3 mb-4">
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-2 top-2.5 text-slate-500" />
-                  <Input
-                    placeholder="Buscar empresa..."
-                    className="h-9 pl-8 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500 focus-visible:ring-slate-600"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
             <div className="flex flex-col gap-1">
-              {filteredCompanies.map((c) => {
+              {companies.map((c) => {
                 const hasDre = currentMonthData.some((d) => d.company === c.id)
                 return (
                   <NavLink
@@ -174,11 +161,11 @@ export default function Layout() {
                   />
                 )
               })}
-              {sidebarOpen && filteredCompanies.length === 0 && (
+              {sidebarOpen && companies.length === 0 && (
                 <p className="text-sm text-slate-500 px-3 py-2">Nenhuma empresa encontrada.</p>
               )}
             </div>
-          </div>
+          </div>{' '}
         </div>
 
         {/* Sidebar Footer */}

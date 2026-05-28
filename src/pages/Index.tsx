@@ -6,6 +6,7 @@ import { PerformanceRanking } from '@/components/dashboard/PerformanceRanking'
 import { TrendCharts } from '@/components/dashboard/TrendCharts'
 import { Building2, LayoutDashboard } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useRealtime } from '@/hooks/use-realtime'
 import {
   Select,
   SelectContent,
@@ -24,34 +25,40 @@ export default function Index() {
 
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true)
-      try {
-        const [comps, dres] = await Promise.all([getCompanies(), getDreData()])
+  const fetchData = async () => {
+    try {
+      const [comps, dres] = await Promise.all([getCompanies(), getDreData()])
 
-        let allowedComps = comps
-        if (user?.allowed_companies?.length > 0) {
-          allowedComps = comps.filter((c) => user.allowed_companies.includes(c.id))
-        }
-        setCompanies(allowedComps)
+      let allowedComps = comps
+      if (user?.allowed_companies?.length > 0) {
+        allowedComps = comps.filter((c) => user.allowed_companies.includes(c.id))
+      }
+      setCompanies(allowedComps)
 
-        const allowedCompIds = new Set(allowedComps.map((c) => c.id))
-        const allowedDres = dres.filter((d) => allowedCompIds.has(d.company))
-        setAllDreData(allowedDres)
+      const allowedCompIds = new Set(allowedComps.map((c) => c.id))
+      const allowedDres = dres.filter((d) => allowedCompIds.has(d.company))
+      setAllDreData(allowedDres)
 
-        if (allowedDres.length > 0) {
-          const latest = allowedDres[0]
-          setSelectedPeriod(`${latest.year}-${latest.month}`)
-        }
-      } catch (err) {
-        console.error(err)
-      } finally {
+      if (allowedDres.length > 0) {
+        setLoading(false)
+        setSelectedPeriod((prev) => prev || `${allowedDres[0].year}-${allowedDres[0].month}`)
+      } else {
         setLoading(false)
       }
+    } catch (err) {
+      console.error(err)
+      setLoading(false)
     }
-    fetchData()
+  }
+
+  useEffect(() => {
+    if (user) {
+      fetchData()
+    }
   }, [user])
+
+  useRealtime('dre_data', () => fetchData())
+  useRealtime('dre_uploads', () => fetchData())
 
   const periods = useMemo(() => {
     const unique = new Set<string>()

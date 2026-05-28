@@ -81,6 +81,8 @@ export default function CompanyDashboard() {
     fetchData()
   }, [slug])
 
+  useRealtime('dre_data', () => fetchData(true))
+
   const fetchDetails = async () => {
     if (!selectedId) return
     try {
