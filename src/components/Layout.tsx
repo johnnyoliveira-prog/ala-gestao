@@ -61,10 +61,10 @@ export default function Layout() {
     if (user) {
       getCompanies()
         .then((allComps) => {
-          if (user.allowed_companies?.length > 0) {
-            setCompanies(allComps.filter((c) => user.allowed_companies.includes(c.id)))
+          if (user.allowed_companies && Array.isArray(user.allowed_companies)) {
+            setCompanies(allComps.filter((c) => user.allowed_companies.includes(c.name)))
           } else {
-            setCompanies(allComps)
+            setCompanies([])
           }
         })
         .catch(console.error)

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-28T13:45:34.928Z",
+  "generatedAt": "2026-05-30T01:24:14.462Z",
   "collections": [
     {
       "name": "users",
@@ -204,7 +204,7 @@
         "view": "@request.auth.id != ''",
         "create": "@request.auth.id != '' && @request.body.user = @request.auth.id",
         "update": "@request.auth.id != '' && user = @request.auth.id",
-        "delete": "@request.auth.id != '' && user = @request.auth.id"
+        "delete": "@request.auth.id != ''"
       },
       "fields": [
         {
@@ -276,7 +276,7 @@
         "view": "@request.auth.id != ''",
         "create": "@request.auth.id != '' && @request.body.user = @request.auth.id",
         "update": "@request.auth.id != '' && user = @request.auth.id",
-        "delete": "@request.auth.id != '' && user = @request.auth.id"
+        "delete": "@request.auth.id != ''"
       },
       "fields": [
         {
@@ -411,7 +411,7 @@
         "view": "@request.auth.id != ''",
         "create": "@request.auth.id != ''",
         "update": "@request.auth.id != '' && dre_data.user = @request.auth.id",
-        "delete": "@request.auth.id != '' && dre_data.user = @request.auth.id"
+        "delete": "@request.auth.id != ''"
       },
       "fields": [
         {
@@ -482,59 +482,6 @@
           "type": "text",
           "required": false,
           "system": false
-        }
-      ],
-      "indexes": []
-    },
-    {
-      "name": "dre_investors",
-      "type": "base",
-      "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != '' && dre_data.user = @request.auth.id",
-        "delete": "@request.auth.id != '' && dre_data.user = @request.auth.id"
-      },
-      "fields": [
-        {
-          "name": "dre_data",
-          "type": "relation",
-          "required": true,
-          "system": false,
-          "collectionRef": "dre_data"
-        },
-        {
-          "name": "investor_name",
-          "type": "text",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "participation_percentage",
-          "type": "number",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "amount",
-          "type": "number",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "created",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate"]
-        },
-        {
-          "name": "updated",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []

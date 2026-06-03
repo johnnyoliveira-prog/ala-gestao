@@ -28,11 +28,11 @@ export function AppSidebar() {
 
         // Filter by allowed companies for the user, if the rule applies
         let filtered = data
-        if (user?.allowed_companies && Array.isArray(user.allowed_companies)) {
-          if (user.allowed_companies.length > 0) {
+        if (user && user.collectionName === 'users') {
+          if (user.allowed_companies && Array.isArray(user.allowed_companies)) {
             filtered = data.filter((c) => user.allowed_companies.includes(c.name))
           } else {
-            filtered = [] // Explicit empty array means no access to any company
+            filtered = []
           }
         }
 

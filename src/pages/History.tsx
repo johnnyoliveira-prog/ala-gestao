@@ -19,7 +19,6 @@ import {
   deleteDreData,
 } from '@/services/dres'
 import { useRealtime } from '@/hooks/use-realtime'
-import { useAuth } from '@/hooks/use-auth'
 import { toast } from '@/hooks/use-toast'
 import {
   Dialog,
@@ -44,7 +43,6 @@ const formatCurrency = (value: number) => {
 }
 
 export default function History() {
-  const { user } = useAuth()
   const [records, setRecords] = useState<DreData[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -202,16 +200,14 @@ export default function History() {
                             </a>
                           </Button>
                         )}
-                        {record.user === user?.id && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteId(record.id)}
-                            title="Excluir"
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500 hover:text-red-700" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteId(record.id)}
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500 hover:text-red-700" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -283,9 +279,7 @@ export default function History() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir permanentemente este DRE? Esta ação removerá o arquivo,
-              os dados extraídos, os itens de linha e as informações dos investidores. Esta ação não
-              pode ser desfeita.
+              Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
