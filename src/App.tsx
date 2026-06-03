@@ -9,6 +9,7 @@ import Index from './pages/Index'
 import Upload from './pages/Upload'
 import History from './pages/History'
 import CompanyDashboard from './pages/CompanyDashboard'
+import AdminUsers from './pages/admin/Users'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import NotFound from './pages/NotFound'
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/upload" element={<Upload />} />
             <Route path="/history" element={<History />} />
             <Route path="/dashboard/:slug" element={<CompanyDashboard />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

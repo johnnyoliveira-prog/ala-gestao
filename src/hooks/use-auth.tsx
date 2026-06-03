@@ -39,6 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         password,
         passwordConfirm: password,
         allowed_companies: [],
+        role: 'consultor',
       })
       await pb.collection('users').authWithPassword(email, password)
       return { error: null }
