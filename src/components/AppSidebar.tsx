@@ -61,7 +61,7 @@ export function AppSidebar() {
                 ))
               ) : companies.length > 0 ? (
                 companies.map((company) => {
-                  const path = `/company/${company.slug}`
+                  const path = `/dashboard/${company.slug}`
                   const isActive = location.pathname === path
 
                   return (

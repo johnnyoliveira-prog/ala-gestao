@@ -50,12 +50,14 @@ export default function CompanyDashboard() {
       setError(false)
       const comp = await getCompanyBySlug(slug)
 
-      if (
-        user?.allowed_companies &&
-        user.allowed_companies.length > 0 &&
-        !user.allowed_companies.includes(comp.id)
-      ) {
-        throw new Error('Acesso negado')
+      if (user && user.collectionName === 'users') {
+        if (
+          !user.allowed_companies ||
+          !Array.isArray(user.allowed_companies) ||
+          !user.allowed_companies.includes(comp.name)
+        ) {
+          throw new Error('Acesso negado')
+        }
       }
 
       setCompany(comp)
