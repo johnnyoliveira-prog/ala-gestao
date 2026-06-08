@@ -1,8 +1,7 @@
-// @deps pdf-parse@1.1.1, buffer@6.0.3
 routerAdd(
   'POST',
   '/backend/v1/parse-dre',
-  async (e) => {
+  (e) => {
     const body = e.requestInfo().body || {}
     let content = body.content
     const uploadId = body.upload_id || body.uploadId
@@ -21,42 +20,11 @@ routerAdd(
     }
 
     if (!content) {
-      const fileRef = uploadRecord.getString('file_ref')
-      if (!fileRef) {
-        uploadRecord.set('status', 'error')
-        $app.save(uploadRecord)
-        return e.badRequestError('Nenhum arquivo ou texto enviado para extração.')
-      }
-
-      try {
-        const baseUrl = $secrets.get('PB_INSTANCE_URL') || 'http://127.0.0.1:8090'
-        const fileUrl = baseUrl + '/api/files/dre_uploads/' + uploadId + '/' + fileRef
-
-        const res = await fetch(fileUrl)
-        if (!res.ok) throw new Error('Falha ao baixar PDF')
-
-        const arrayBuffer = await res.arrayBuffer()
-        const pdfParse = require('pdf-parse')
-        const { Buffer } = require('buffer')
-
-        const pdfData = await pdfParse(Buffer.from(arrayBuffer))
-        content = pdfData.text
-      } catch (err) {
-        uploadRecord.set('status', 'error')
-        $app.save(uploadRecord)
-        $app
-          .logger()
-          .error('Falha ao extrair texto do PDF', 'uploadId', uploadId, 'error', err.message)
-        return e.badRequestError(
-          'Falha ao processar o arquivo PDF. Envie o texto extraído no campo content.',
-        )
-      }
-    }
-
-    if (!content) {
       uploadRecord.set('status', 'error')
       $app.save(uploadRecord)
-      return e.badRequestError('Nenhum texto de arquivo enviado para extração.')
+      return e.badRequestError(
+        'Nenhum texto enviado para extração. Envie o texto extraído no campo content.',
+      )
     }
 
     let parsedJson = { line_items: [] }
