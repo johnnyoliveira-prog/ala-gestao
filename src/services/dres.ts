@@ -84,6 +84,7 @@ export const saveDreFull = async ({
   data,
   lineItems,
   overwriteId,
+  existingUploadId,
 }: {
   userId: string
   companyId: string
@@ -94,10 +95,11 @@ export const saveDreFull = async ({
   data: any
   lineItems?: any[]
   overwriteId?: string
+  existingUploadId?: string | null
 }) => {
-  let uploadId = null
+  let uploadId = existingUploadId || null
 
-  if (file) {
+  if (file && !uploadId) {
     const formData = new FormData()
     formData.append('user', userId)
     formData.append('company', companyId)
@@ -109,6 +111,12 @@ export const saveDreFull = async ({
 
     const uploadRecord = await pb.collection('dre_uploads').create(formData)
     uploadId = uploadRecord.id
+  } else if (uploadId) {
+    try {
+      await pb.collection('dre_uploads').update(uploadId, { status: 'processed' })
+    } catch (e) {
+      // ignore
+    }
   }
 
   const dreDataPayload: any = {

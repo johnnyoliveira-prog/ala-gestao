@@ -106,6 +106,7 @@ export default function Upload() {
   const [futureReceivables, setFutureReceivables] = useState('')
   const [duplicateRecord, setDuplicateRecord] = useState<DreData | null>(null)
   const [showOverwriteModal, setShowOverwriteModal] = useState(false)
+  const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -148,6 +149,16 @@ export default function Upload() {
   }, [netResult, extractedData?.admin_fee_pct, extractedData?.reserve_fee_pct])
 
   const validateAndSetFile = (selectedFile: File) => {
+    if (!company || !month || !year) {
+      toast({
+        variant: 'destructive',
+        title: 'Atenção',
+        description: 'Selecione a empresa, mês e ano antes de enviar o arquivo.',
+      })
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     const validTypes = [
       'application/pdf',
       'text/csv',
@@ -163,6 +174,7 @@ export default function Upload() {
         title: 'Arquivo inválido',
         description: 'Formato não suportado. Por favor, envie apenas arquivos PDF, CSV ou XLSX.',
       })
+      if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
     setFile(selectedFile)
@@ -174,9 +186,29 @@ export default function Upload() {
     setExtractedData(null)
     setRawSpreadsheetData(null)
     setIsMapping(false)
+    setActiveUploadId(null)
 
     try {
       if (uploadedFile.name.endsWith('.pdf')) {
+        if (!user) throw new Error('Usuário não autenticado.')
+
+        const formData = new FormData()
+        formData.append('user', user.id)
+        formData.append('company', company)
+        formData.append('month', month)
+        formData.append('year', year)
+        formData.append('file_ref', uploadedFile)
+        formData.append('file_type', 'pdf')
+        formData.append('status', 'processing')
+
+        let uploadRecord
+        try {
+          uploadRecord = await pb.collection('dre_uploads').create(formData)
+          setActiveUploadId(uploadRecord.id)
+        } catch (err: any) {
+          throw new Error('Falha ao criar registro de upload inicial. ' + getErrorMessage(err))
+        }
+
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader()
           reader.onload = () => resolve(reader.result as string)
@@ -185,13 +217,22 @@ export default function Upload() {
         })
         const base64 = dataUrl.split(',')[1]
 
-        const response = await pb.send('/backend/v1/parse-dre', {
-          method: 'POST',
-          body: JSON.stringify({ content: base64 }),
-          headers: { 'Content-Type': 'application/json' },
-        })
-        setExtractedData(response)
-        toast({ title: 'Extração concluída' })
+        try {
+          const response = await pb.send('/backend/v1/parse-dre', {
+            method: 'POST',
+            body: JSON.stringify({ content: base64, upload_id: uploadRecord.id }),
+            headers: { 'Content-Type': 'application/json' },
+          })
+          setExtractedData(response)
+          toast({ title: 'Extração concluída' })
+        } catch (err: any) {
+          try {
+            await pb.collection('dre_uploads').update(uploadRecord.id, { status: 'failed' })
+          } catch (_) {
+            // ignore
+          }
+          throw err
+        }
       } else {
         const isExcel = /\.(xlsx|xls)$/i.test(uploadedFile.name)
 
@@ -396,6 +437,7 @@ export default function Upload() {
     setRawSpreadsheetData(null)
     setIsMapping(false)
     setFutureReceivables('')
+    setActiveUploadId(null)
   }
 
   const handleSaveAttempt = async () => {
@@ -410,9 +452,13 @@ export default function Upload() {
     setIsSaving(true)
     const duplicate = await checkDuplicateDreData(company, Number(month), Number(year))
     if (duplicate) {
-      setDuplicateRecord(duplicate)
-      setShowOverwriteModal(true)
-      setIsSaving(false)
+      if (activeUploadId && duplicate.upload === activeUploadId) {
+        await performSave(duplicate.id)
+      } else {
+        setDuplicateRecord(duplicate)
+        setShowOverwriteModal(true)
+        setIsSaving(false)
+      }
     } else {
       await performSave()
     }
@@ -437,8 +483,9 @@ export default function Upload() {
         companyId: company,
         month: Number(month),
         year: Number(year),
-        file,
+        file: activeUploadId ? null : file,
         fileType,
+        existingUploadId: activeUploadId,
         data: {
           total_receitas: Number(extractedData.total_revenue) || 0,
           total_despesas: Number(extractedData.total_expenses) || 0,
@@ -522,7 +569,7 @@ export default function Upload() {
                         variant="outline"
                         role="combobox"
                         aria-expanded={openCompany}
-                        disabled={isLoadingCompanies || errorCompanies}
+                        disabled={isLoadingCompanies || errorCompanies || file !== null}
                         className="w-full justify-between bg-white font-normal flex-1"
                       >
                         {isLoadingCompanies
@@ -595,7 +642,7 @@ export default function Upload() {
                   <Label>
                     Mês <span className="text-red-500">*</span>
                   </Label>
-                  <Select value={month} onValueChange={setMonth}>
+                  <Select value={month} onValueChange={setMonth} disabled={file !== null}>
                     <SelectTrigger className="bg-white">
                       <SelectValue placeholder="Mês" />
                     </SelectTrigger>
@@ -612,7 +659,7 @@ export default function Upload() {
                   <Label>
                     Ano <span className="text-red-500">*</span>
                   </Label>
-                  <Select value={year} onValueChange={setYear}>
+                  <Select value={year} onValueChange={setYear} disabled={file !== null}>
                     <SelectTrigger className="bg-white">
                       <SelectValue placeholder="Ano" />
                     </SelectTrigger>
