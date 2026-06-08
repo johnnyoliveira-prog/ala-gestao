@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Building2, Users } from 'lucide-react'
 import {
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/sidebar'
 import { getCompanies, type Company } from '@/services/companies'
 import { useAuth } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export function AppSidebar() {
   const [companies, setCompanies] = useState<Company[]>([])
@@ -21,30 +22,36 @@ export function AppSidebar() {
   const location = useLocation()
   const { user } = useAuth()
 
-  useEffect(() => {
-    async function loadCompanies() {
-      try {
-        const data = await getCompanies()
+  const loadCompanies = useCallback(async () => {
+    try {
+      const data = await getCompanies()
 
-        // Filter by allowed companies for the user, if the rule applies
-        let filtered = data
-        if (user && user.collectionName === 'users') {
-          if (user.allowed_companies && Array.isArray(user.allowed_companies)) {
-            filtered = data.filter((c) => user.allowed_companies.includes(c.name))
-          } else {
-            filtered = []
-          }
+      let filtered = data
+      // Filter by allowed companies for non-admin users
+      if (user?.role !== 'admin') {
+        const allowed = user?.allowed_companies || []
+        if (Array.isArray(allowed)) {
+          filtered = data.filter((c) => allowed.includes(c.name))
+        } else {
+          filtered = []
         }
-
-        setCompanies(filtered)
-      } catch (err) {
-        console.error('Failed to load companies:', err)
-      } finally {
-        setLoading(false)
       }
+
+      setCompanies(filtered)
+    } catch (err) {
+      console.error('Failed to load companies:', err)
+    } finally {
+      setLoading(false)
     }
-    loadCompanies()
   }, [user])
+
+  useEffect(() => {
+    loadCompanies()
+  }, [loadCompanies])
+
+  useRealtime('companies', () => {
+    loadCompanies()
+  })
 
   return (
     <Sidebar className="bg-white">
@@ -96,11 +103,7 @@ export function AppSidebar() {
               ) : (
                 <div className="px-3 py-6 text-sm text-slate-500 text-center flex flex-col items-center gap-2">
                   <Building2 className="h-6 w-6 text-slate-300" />
-                  <span>
-                    Nenhuma empresa
-                    <br />
-                    encontrada
-                  </span>
+                  <span>Nenhuma empresa vinculada</span>
                 </div>
               )}
             </SidebarMenu>
