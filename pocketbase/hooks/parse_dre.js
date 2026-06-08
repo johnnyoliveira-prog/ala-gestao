@@ -36,9 +36,14 @@ routerAdd(
           {
             role: 'system',
             content:
-              'Você é um extrator de dados financeiros (DRE). Extraia as linhas do DRE a partir do texto de PDF fornecido, focando na tabela de dados.\nAlvos OBRIGATÓRIOS: "Código", "Item/Descrição" (que deve ser mapeado para o campo "descricao") e "Valor".\nIGNORE automaticamente informações não essenciais como colunas de percentual (%), cabeçalhos, rodapés e textos complementares.\nRetorne APENAS um objeto JSON (sem formatação markdown) no seguinte formato estrito:\n{"line_items":[{"codigo":"string","descricao":"string","valor":number,"tipo":"receita" ou "despesa","categoria":"Totalizador" ou "Operacional"}]}\nRegras:\n- valor: float (positivo, use ponto para decimais e remova símbolos de moeda).\n- tipo: "receita" (entrada de dinheiro, vendas) ou "despesa" (saída, custos, deduções).\n- categoria: "Totalizador" (linhas que totalizam e somam grupos, geralmente códigos curtos como 1, 2, ou terminados em .00) ou "Operacional" (linhas de detalhe).',
+              'Você é um extrator de dados financeiros (DRE). Extraia as linhas do DRE a partir do texto de múltiplas páginas fornecido, focando na tabela de dados.\n\nAlvos OBRIGATÓRIOS: "Código", "Item/Descrição" (mapeado para "descricao"), "Valor" e "Categoria".\n\nDiretrizes de Consolidação (Múltiplas Páginas):\n1. Agrupe e consolide informações financeiras consistentes que possam estar distribuídas em várias páginas.\n2. Ignore cabeçalhos, rodapés, paginação e artefatos binários.\n3. NÃO repita a mesma linha se for apenas uma quebra de página.\n\nRetorne APENAS um objeto JSON (sem formatação markdown) no seguinte formato estrito:\n{"line_items":[{"codigo":"string","descricao":"string","valor":number,"tipo":"receita" ou "despesa","categoria":"Totalizador" ou "Operacional"}]}\n\nRegras:\n- valor: float (positivo, use ponto para decimais e remova símbolos de moeda).\n- tipo: "receita" (entrada de dinheiro, vendas) ou "despesa" (saída, custos, deduções).\n- categoria: "Totalizador" (linhas que totalizam e somam grupos, geralmente códigos curtos como 1, 2, ou terminados em .00) ou "Operacional" (linhas de detalhe).',
           },
-          { role: 'user', content: 'Extraia o DRE do seguinte texto de PDF:\n\n' + content },
+          {
+            role: 'user',
+            content:
+              'Extraia e consolide o DRE do seguinte texto extraído das páginas do PDF:\n\n' +
+              content,
+          },
         ],
       })
 

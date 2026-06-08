@@ -45,6 +45,13 @@ import { ToastAction } from '@/components/ui/toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
+import * as pdfjsLib from 'pdfjs-dist'
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url,
+).toString()
+
 import {
   Dialog,
   DialogContent,
@@ -109,6 +116,17 @@ export default function Upload() {
   const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isExtracting || isSaving) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isExtracting, isSaving])
 
   const fetchCompanies = () => {
     if (!user) return
@@ -209,18 +227,21 @@ export default function Upload() {
           throw new Error('Falha ao criar registro de upload inicial. ' + getErrorMessage(err))
         }
 
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => resolve(reader.result as string)
-          reader.onerror = reject
-          reader.readAsDataURL(uploadedFile)
-        })
-        const base64 = dataUrl.split(',')[1]
+        const arrayBuffer = await uploadedFile.arrayBuffer()
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+        let fullText = ''
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i)
+          const textContent = await page.getTextContent()
+          const pageText = textContent.items.map((item: any) => item.str).join(' ')
+          fullText += `--- Página ${i} ---\n${pageText}\n\n`
+        }
 
         try {
           const response = await pb.send('/backend/v1/parse-dre', {
             method: 'POST',
-            body: JSON.stringify({ content: base64, upload_id: uploadRecord.id }),
+            body: JSON.stringify({ content: fullText, upload_id: uploadRecord.id }),
             headers: { 'Content-Type': 'application/json' },
           })
           setExtractedData(response)
@@ -684,17 +705,19 @@ export default function Upload() {
               {!file ? (
                 <div
                   onDragOver={(e) => {
+                    if (isExtracting) return
                     e.preventDefault()
                     setIsDragActive(true)
                   }}
                   onDragLeave={() => setIsDragActive(false)}
                   onDrop={(e) => {
+                    if (isExtracting) return
                     e.preventDefault()
                     setIsDragActive(false)
                     if (e.dataTransfer.files?.length) validateAndSetFile(e.dataTransfer.files[0])
                   }}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${isDragActive ? 'border-slate-500 bg-slate-50 scale-[1.02]' : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'}`}
+                  onClick={() => !isExtracting && fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${isExtracting ? 'opacity-50 cursor-not-allowed border-slate-200' : 'cursor-pointer'} ${isDragActive ? 'border-slate-500 bg-slate-50 scale-[1.02]' : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'}`}
                 >
                   <input
                     type="file"
@@ -731,7 +754,8 @@ export default function Upload() {
                     variant="ghost"
                     size="icon"
                     onClick={removeFile}
-                    className="text-slate-500 hover:text-red-600"
+                    disabled={isExtracting}
+                    className="text-slate-500 hover:text-red-600 disabled:opacity-50"
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -772,13 +796,27 @@ export default function Upload() {
                   <p>Aguardando upload do arquivo...</p>
                 </div>
               ) : isExtracting ? (
-                <div className="p-6 space-y-4">
-                  <div className="flex items-center gap-3 text-slate-600 mb-6">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-slate-900"></div>
-                    <span className="font-medium animate-pulse">Analisando documento...</span>
+                <div className="p-6 space-y-6 flex flex-col items-center justify-center min-h-[300px]">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-emerald-100 rounded-full animate-ping opacity-75"></div>
+                    <div className="relative bg-white border-2 border-emerald-500 rounded-full p-4 shadow-sm">
+                      <FileText className="w-8 h-8 text-emerald-600 animate-pulse" />
+                    </div>
                   </div>
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-32 w-full" />
+                  <div className="text-center space-y-2">
+                    <h3 className="text-lg font-semibold text-slate-800">
+                      Extraindo e Consolidando Dados
+                    </h3>
+                    <p className="text-sm text-slate-500 max-w-sm mx-auto">
+                      Lendo as páginas do documento e utilizando inteligência artificial para
+                      agrupar receitas e despesas. Isso pode levar alguns instantes.
+                    </p>
+                  </div>
+                  <div className="w-full max-w-md space-y-3 mt-4">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-5/6 mx-auto" />
+                    <Skeleton className="h-4 w-4/6 mx-auto" />
+                  </div>
                 </div>
               ) : isMapping ? (
                 <div className="p-6 space-y-6 animate-fade-in-up">
