@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useEffect } from 'react'
@@ -61,7 +62,9 @@ export default function Layout() {
     if (user) {
       getCompanies()
         .then((allComps) => {
-          if (user.allowed_companies && Array.isArray(user.allowed_companies)) {
+          if (user.role === 'admin') {
+            setCompanies(allComps)
+          } else if (user.allowed_companies && Array.isArray(user.allowed_companies)) {
             setCompanies(allComps.filter((c) => user.allowed_companies.includes(c.name)))
           } else {
             setCompanies([])
@@ -71,7 +74,14 @@ export default function Layout() {
 
       getDreData()
         .then((dres) => {
-          const current = dres.filter((d) => d.month === currentMonth && d.year === currentYear)
+          let filteredDres = dres
+          if (user.role !== 'admin') {
+            const allowed = Array.isArray(user.allowed_companies) ? user.allowed_companies : []
+            filteredDres = dres.filter((d) => allowed.includes(d.expand?.company?.name))
+          }
+          const current = filteredDres.filter(
+            (d) => d.month === currentMonth && d.year === currentYear,
+          )
           setCurrentMonthData(current)
         })
         .catch(console.error)
@@ -140,8 +150,18 @@ export default function Layout() {
           />
           <NavLink to="/upload" icon={UploadCloud} label="Upload DRE" collapsed={!sidebarOpen} />
           <NavLink to="/history" icon={History} label="Histórico" collapsed={!sidebarOpen} />
+          {user?.role === 'admin' && (
+            <div className="mt-4 mb-2">
+              {sidebarOpen && (
+                <div className="px-3 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Administração
+                </div>
+              )}
+              <NavLink to="/admin/users" icon={Users} label="Usuários" collapsed={!sidebarOpen} />
+            </div>
+          )}
           {/* SPEs */}
-          <div className="mt-6 mb-2 flex-1">
+          <div className="mt-4 mb-2 flex-1">
             {sidebarOpen && (
               <div className="px-3 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Empresas (SPEs)

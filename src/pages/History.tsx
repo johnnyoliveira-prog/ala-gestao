@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Download, Eye, Search, FileText, Trash2 } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
 import {
   getDreData,
   getDreUploadFileUrl,
@@ -43,6 +44,7 @@ const formatCurrency = (value: number) => {
 }
 
 export default function History() {
+  const { user } = useAuth()
   const [records, setRecords] = useState<DreData[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -56,7 +58,12 @@ export default function History() {
   const loadData = async () => {
     try {
       const data = await getDreData()
-      setRecords(data)
+      if (user?.role === 'admin') {
+        setRecords(data)
+      } else {
+        const allowed = Array.isArray(user?.allowed_companies) ? user.allowed_companies : []
+        setRecords(data.filter((r) => allowed.includes(r.expand?.company?.name)))
+      }
     } catch (e) {
       console.error(e)
     } finally {

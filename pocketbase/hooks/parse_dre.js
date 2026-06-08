@@ -9,166 +9,98 @@ routerAdd(
       return e.badRequestError('Nenhum arquivo enviado para extração.')
     }
 
+    let parsedJson = { line_items: [] }
+
+    try {
+      const reply = $ai.chat({
+        model: 'fast',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Você é um extrator de dados financeiros (DRE). Extraia as linhas do DRE a partir do texto de PDF fornecido.\nAlvos OBRIGATÓRIOS: "Código", "Item/Descrição" e "Valor".\nIGNORE a coluna de Percentual (%), cabeçalhos, rodapés e textos complementares.\nRetorne APENAS um objeto JSON (sem formatação markdown) no seguinte formato estrito:\n{"line_items":[{"codigo":"string","descricao":"string","valor":number,"tipo":"receita" ou "despesa","categoria":"Totalizador" ou "Operacional"}]}\nRegras:\n- valor: float (positivo, use ponto para decimais).\n- tipo: "receita" (entrada de dinheiro, vendas) ou "despesa" (saída, custos, deduções).\n- categoria: "Totalizador" (linhas que totalizam e somam grupos, geralmente códigos curtos como 1, 2, ou terminados em .00) ou "Operacional" (linhas de detalhe).',
+          },
+          { role: 'user', content: 'Extraia o DRE do seguinte texto:\n\n' + content },
+        ],
+      })
+
+      let jsonText = reply.choices[0].message.content.trim()
+      if (jsonText.startsWith('```json')) jsonText = jsonText.substring(7)
+      if (jsonText.startsWith('```')) jsonText = jsonText.substring(3)
+      if (jsonText.endsWith('```')) jsonText = jsonText.substring(0, jsonText.length - 3)
+
+      parsedJson = JSON.parse(jsonText.trim())
+    } catch (err) {
+      return e.badRequestError(
+        'Falha ao interpretar o arquivo usando IA. Tente novamente ou verifique se o arquivo possui um DRE legível.',
+      )
+    }
+
+    if (!parsedJson.line_items || parsedJson.line_items.length === 0) {
+      return e.badRequestError('Nenhuma linha do DRE encontrada pelo modelo de IA.')
+    }
+
     const extracted = {
       total_revenue: 0,
       total_expenses: 0,
       net_result: 0,
       admin_fee_pct: 10,
       reserve_fee_pct: 5,
-      line_items: [],
+      line_items: parsedJson.line_items.map((i) => ({
+        codigo: i.codigo || '',
+        descricao: i.descricao || '',
+        valor: Math.abs(i.valor || 0),
+        tipo: i.tipo === 'receita' ? 'receita' : 'despesa',
+        categoria: i.categoria === 'Totalizador' ? 'Totalizador' : 'Operacional',
+        resumo: (i.descricao || '').substring(0, 20),
+        situacao: '',
+        percentual: 0,
+      })),
     }
 
-    let text = content
-    let hasParsedRows = false
+    const hasRecTot = extracted.line_items.some(
+      (i) => i.tipo === 'receita' && i.categoria === 'Totalizador',
+    )
+    const hasDesTot = extracted.line_items.some(
+      (i) => i.tipo === 'despesa' && i.categoria === 'Totalizador',
+    )
 
-    if (typeof text === 'string' && text.includes('\n')) {
-      const lines = text.split(/\r?\n/)
-      for (const line of lines) {
-        const cols = line.split('\t')
-        if (cols.length >= 10) {
-          const codigo = (cols[0] || '').trim()
-          const dots = (codigo.match(/\./g) || []).length
+    const fallbackRecSum = extracted.line_items
+      .filter((i) => i.tipo === 'receita' && i.categoria !== 'Totalizador')
+      .reduce((s, i) => s + i.valor, 0)
+    const fallbackDesSum = extracted.line_items
+      .filter((i) => i.tipo === 'despesa' && i.categoria !== 'Totalizador')
+      .reduce((s, i) => s + i.valor, 0)
 
-          if (dots === 1) {
-            // Single Dot Rule
-            const parts = codigo.split('.')
-            const isTotalizer = parts[0].length > 1 || parts[1] === '00' // Totalizers have prefix >= 10 (e.g. 30) or suffix 00 (e.g. 1.00)
-            const categoria = isTotalizer ? 'Totalizador' : 'Operacional'
+    let currentRecTot =
+      fallbackRecSum > 0
+        ? fallbackRecSum
+        : extracted.line_items.filter((i) => i.tipo === 'receita').reduce((s, i) => s + i.valor, 0)
+    let currentDesTot =
+      fallbackDesSum > 0
+        ? fallbackDesSum
+        : extracted.line_items.filter((i) => i.tipo === 'despesa').reduce((s, i) => s + i.valor, 0)
 
-            const descricao = cols
-              .slice(1, 8)
-              .filter((c) => c && c.trim() !== '')
-              .join(' ')
-              .trim()
-            const receitaStr = (cols[11] || '').replace(/\./g, '').replace(',', '.')
-            const despesaStr = (cols[12] || '').replace(/\./g, '').replace(',', '.')
-            const situacao = (cols[13] || '').trim()
-
-            const receita = parseFloat(receitaStr) || 0
-            const despesa = parseFloat(despesaStr) || 0
-
-            const valor = receita > 0 ? receita : despesa
-            const tipo = receita > 0 ? 'receita' : 'despesa'
-
-            if (valor > 0 || situacao) {
-              extracted.line_items.push({
-                codigo,
-                descricao,
-                resumo: descricao.substring(0, 20),
-                situacao,
-                valor,
-                tipo,
-                categoria,
-              })
-              hasParsedRows = true
-            }
-          }
-        }
-      }
-
-      if (hasParsedRows) {
-        const hasRecTot = extracted.line_items.some(
-          (i) => i.tipo === 'receita' && i.categoria === 'Totalizador',
-        )
-        const hasDesTot = extracted.line_items.some(
-          (i) => i.tipo === 'despesa' && i.categoria === 'Totalizador',
-        )
-
-        let fallbackRecSum = 0
-        let fallbackDesSum = 0
-        if (!hasRecTot)
-          fallbackRecSum = extracted.line_items
-            .filter((i) => i.tipo === 'receita')
-            .reduce((s, i) => s + i.valor, 0)
-        if (!hasDesTot)
-          fallbackDesSum = extracted.line_items
-            .filter((i) => i.tipo === 'despesa')
-            .reduce((s, i) => s + i.valor, 0)
-
-        let currentRecTot = fallbackRecSum
-        let currentDesTot = fallbackDesSum
-
-        for (const item of extracted.line_items) {
-          if (item.categoria === 'Totalizador') {
-            if (item.tipo === 'receita') currentRecTot = item.valor
-            if (item.tipo === 'despesa') currentDesTot = item.valor
-            item.percentual = 100
-          } else {
-            const base = item.tipo === 'receita' ? currentRecTot : currentDesTot
-            item.percentual = base > 0 ? parseFloat(((item.valor / base) * 100).toFixed(2)) : 0
-          }
-        }
-
-        extracted.total_revenue = hasRecTot
-          ? extracted.line_items
-              .filter((i) => i.tipo === 'receita' && i.categoria === 'Totalizador')
-              .reduce((s, i) => s + i.valor, 0)
-          : fallbackRecSum
-
-        extracted.total_expenses = hasDesTot
-          ? extracted.line_items
-              .filter((i) => i.tipo === 'despesa' && i.categoria === 'Totalizador')
-              .reduce((s, i) => s + i.valor, 0)
-          : fallbackDesSum
+    for (const item of extracted.line_items) {
+      if (item.categoria === 'Totalizador') {
+        item.percentual = 100
+      } else {
+        const base = item.tipo === 'receita' ? currentRecTot : currentDesTot
+        item.percentual = base > 0 ? parseFloat(((item.valor / base) * 100).toFixed(2)) : 0
       }
     }
 
-    if (!hasParsedRows) {
-      extracted.line_items = [
-        {
-          codigo: '2.01',
-          tipo: 'receita',
-          descricao: 'APORTE DE CAPITAL',
-          resumo: 'APORTE DE CAPITAL',
-          situacao: '15.760,00',
-          valor: 15760.0,
-          categoria: 'Operacional',
-          percentual: 100,
-        },
-        {
-          codigo: '2.03',
-          tipo: 'receita',
-          descricao: 'RECEITAS FINANCEIRAS',
-          resumo: 'RECEITAS FINANCEIRA',
-          situacao: '0,20',
-          valor: 0.2,
-          categoria: 'Operacional',
-          percentual: 0,
-        },
-        {
-          codigo: '1.02',
-          tipo: 'despesa',
-          descricao: 'DESPESAS FINANCEIRAS',
-          resumo: 'DESPESAS FINANCEIRA',
-          situacao: '0,20',
-          valor: 0.2,
-          categoria: 'Operacional',
-          percentual: 0.66,
-        },
-        {
-          codigo: '1.03',
-          tipo: 'despesa',
-          descricao: 'DESPESAS / CUSTOS GERAIS',
-          resumo: 'DESPESAS / CUSTOS GE',
-          situacao: '403,34',
-          valor: 403.34,
-          categoria: 'Operacional',
-          percentual: 1.34,
-        },
-        {
-          codigo: '3.03',
-          tipo: 'despesa',
-          descricao: 'OPERAÇÃO - PRESTAÇÃO DE SERVIÇOS',
-          resumo: 'OPERAÇÃO - PRESTAÇÃ',
-          situacao: '-29.668,00',
-          valor: 29668.0,
-          categoria: 'Operacional',
-          percentual: 98.0,
-        },
-      ]
-      extracted.total_revenue = 15760.2
-      extracted.total_expenses = 30071.54
-    }
+    extracted.total_revenue = hasRecTot
+      ? extracted.line_items
+          .filter((i) => i.tipo === 'receita' && i.categoria === 'Totalizador')
+          .reduce((s, i) => s + i.valor, 0)
+      : currentRecTot
+
+    extracted.total_expenses = hasDesTot
+      ? extracted.line_items
+          .filter((i) => i.tipo === 'despesa' && i.categoria === 'Totalizador')
+          .reduce((s, i) => s + i.valor, 0)
+      : currentDesTot
 
     extracted.net_result = extracted.total_revenue - extracted.total_expenses
 

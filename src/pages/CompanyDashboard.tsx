@@ -50,7 +50,7 @@ export default function CompanyDashboard() {
       setError(false)
       const comp = await getCompanyBySlug(slug)
 
-      if (user && user.collectionName === 'users') {
+      if (user && user.collectionName === 'users' && user.role !== 'admin') {
         if (
           !user.allowed_companies ||
           !Array.isArray(user.allowed_companies) ||
