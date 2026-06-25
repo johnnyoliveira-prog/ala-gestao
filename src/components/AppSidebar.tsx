@@ -105,22 +105,24 @@ export function AppSidebar() {
                     <SidebarMenuSkeleton />
                   </SidebarMenuItem>
                 ))
-              ) : companies.length > 0 ? (
-                companies.map((company) => {
-                  const path = `/dashboard/${company.slug}`
-                  const isActive = location.pathname === path
+              ) : companies.filter((c) => c.slug !== 'cr-vinicola').length > 0 ? (
+                companies
+                  .filter((c) => c.slug !== 'cr-vinicola')
+                  .map((company) => {
+                    const path = `/dashboard/${company.slug}`
+                    const isActive = location.pathname === path
 
-                  return (
-                    <SidebarMenuItem key={company.id}>
-                      <SidebarMenuButton asChild isActive={isActive}>
-                        <Link to={path}>
-                          <Building2 className="h-4 w-4 shrink-0 text-slate-400" />
-                          <span className="truncate">{company.name}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )
-                })
+                    return (
+                      <SidebarMenuItem key={company.id}>
+                        <SidebarMenuButton asChild isActive={isActive}>
+                          <Link to={path}>
+                            <Building2 className="h-4 w-4 shrink-0 text-slate-400" />
+                            <span className="truncate">{company.name}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })
               ) : (
                 <div className="px-3 py-6 text-sm text-slate-500 text-center flex flex-col items-center gap-2">
                   <Building2 className="h-6 w-6 text-slate-300" />
