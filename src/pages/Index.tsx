@@ -30,10 +30,10 @@ export default function Index() {
     try {
       const [comps, dres] = await Promise.all([getCompanies(), getDreData()])
 
-      let allowedComps = comps
+      let allowedComps = comps.filter((c) => c.slug !== 'cr-vinicola')
       if (user && user.collectionName === 'users') {
         if (user.allowed_companies && Array.isArray(user.allowed_companies)) {
-          allowedComps = comps.filter((c) => user.allowed_companies.includes(c.name))
+          allowedComps = allowedComps.filter((c) => user.allowed_companies.includes(c.name))
         } else {
           allowedComps = []
         }
