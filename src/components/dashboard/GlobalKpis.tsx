@@ -65,8 +65,12 @@ export function GlobalKpis({ currentData, previousData }: GlobalKpisProps) {
   const prevMargin = prevRev > 0 ? (prevRes / prevRev) * 100 : 0
   const marginDiff = curRev > 0 && prevRev > 0 ? curMargin - prevMargin : null
 
+  const curOpex = curRev > 0 ? (curExp / curRev) * 100 : 0
+  const prevOpex = prevRev > 0 ? (prevExp / prevRev) * 100 : 0
+  const opexDiff = curRev > 0 && prevRev > 0 ? curOpex - prevOpex : null
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-slate-500">Receita Global</CardTitle>
@@ -118,6 +122,18 @@ export function GlobalKpis({ currentData, previousData }: GlobalKpisProps) {
           <div className="flex mt-1 items-center">
             <span className="text-xs text-slate-500">vs mês ant.</span>
             <TrendIndicator value={marginDiff} />
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-slate-500">Eficiência (OPEX %)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-slate-900">{curOpex.toFixed(1)}%</div>
+          <div className="flex mt-1 items-center">
+            <span className="text-xs text-slate-500">vs mês ant.</span>
+            <TrendIndicator value={opexDiff} invert />
           </div>
         </CardContent>
       </Card>

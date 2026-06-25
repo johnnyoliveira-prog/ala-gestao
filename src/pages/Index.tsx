@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { GlobalKpis } from '@/components/dashboard/GlobalKpis'
 import { PerformanceRanking } from '@/components/dashboard/PerformanceRanking'
 import { TrendCharts } from '@/components/dashboard/TrendCharts'
+import { PortfolioMatrix } from '@/components/dashboard/PortfolioMatrix'
 import { Building2, LayoutDashboard } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -193,6 +194,7 @@ export default function Index() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <TrendCharts allData={aggregatedTrendData} selectedId={selectedPeriod} />
             <PerformanceRanking currentData={currentData} companies={companies} />
+            <PortfolioMatrix currentData={currentData} companies={companies} />
           </div>
         </div>
       )}
