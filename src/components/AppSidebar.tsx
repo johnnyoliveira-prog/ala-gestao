@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Building2, Users } from 'lucide-react'
+import { Building2, Users, Package } from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -66,6 +66,27 @@ export function AppSidebar() {
                     <Link to="/admin/users">
                       <Users className="h-4 w-4 shrink-0 text-slate-400" />
                       <span>Usuários</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {companies.some((c) => c.slug === 'cr-vinicola') && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="mb-2 px-3">Estoque CR Vinícola</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location.pathname === '/dashboard/cr-vinicola/estoque'}
+                  >
+                    <Link to="/dashboard/cr-vinicola/estoque">
+                      <Package className="h-4 w-4 shrink-0 text-slate-400" />
+                      <span>Estoque Vinícola</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
