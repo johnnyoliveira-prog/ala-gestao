@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
 
 interface AuthContextType {
   user: any
@@ -44,6 +45,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       unsubscribe()
     }
   }, [])
+
+  useRealtime(
+    'users',
+    (e) => {
+      if (e.record.id === pb.authStore.record?.id) {
+        pb.collection('users')
+          .authRefresh()
+          .catch(() => {})
+      }
+    },
+    isAuthenticated,
+  )
 
   const signUp = async (name: string, email: string, password: string) => {
     try {

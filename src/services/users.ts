@@ -6,6 +6,7 @@ export interface User {
   email: string
   role: 'admin' | 'gestor' | 'consultor'
   allowed_companies: string[]
+  can_view_global_dashboard: boolean
   created: string
 }
 

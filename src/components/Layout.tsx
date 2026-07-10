@@ -142,12 +142,14 @@ export default function Layout() {
 
         <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-2 px-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-900 [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
           {/* Main Links */}
-          <NavLink
-            to="/dashboard"
-            icon={LayoutDashboard}
-            label="Dashboard Geral (Grupo ALA)"
-            collapsed={!sidebarOpen}
-          />
+          {user?.can_view_global_dashboard && (
+            <NavLink
+              to="/dashboard"
+              icon={LayoutDashboard}
+              label="Dashboard Geral (Grupo ALA)"
+              collapsed={!sidebarOpen}
+            />
+          )}
           <NavLink to="/upload" icon={UploadCloud} label="Upload DRE" collapsed={!sidebarOpen} />
           <NavLink to="/history" icon={History} label="Histórico" collapsed={!sidebarOpen} />
           {user?.role === 'admin' && (

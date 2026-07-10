@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { Navigate } from 'react-router-dom'
 import { getCompanies, getDreData, Company, DreData } from '@/services/dres'
 import { useAuth } from '@/hooks/use-auth'
 import { GlobalKpis } from '@/components/dashboard/GlobalKpis'
@@ -25,9 +26,25 @@ export default function Index() {
   const [loading, setLoading] = useState(true)
 
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
+  const [redirectPath, setRedirectPath] = useState<string>('')
 
   const fetchData = async () => {
     try {
+      if (user && !user.can_view_global_dashboard) {
+        const comps = await getCompanies()
+        let allowedComps = comps.filter((c) => c.slug !== 'cr-vinicola')
+        if (user.allowed_companies && Array.isArray(user.allowed_companies)) {
+          allowedComps = allowedComps.filter((c) => user.allowed_companies.includes(c.name))
+        }
+        if (allowedComps.length > 0) {
+          setRedirectPath(`/dashboard/${allowedComps[0].slug}`)
+        } else {
+          setRedirectPath('/history')
+        }
+        setLoading(false)
+        return
+      }
+
       const [comps, dres] = await Promise.all([getCompanies(), getDreData()])
 
       let allowedComps = comps.filter((c) => c.slug !== 'cr-vinicola')
@@ -122,6 +139,10 @@ export default function Index() {
       return b.month - a.month
     })
   }, [allDreData])
+
+  if (redirectPath) {
+    return <Navigate to={redirectPath} replace />
+  }
 
   if (loading) {
     return (

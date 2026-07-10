@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
 
@@ -97,6 +98,25 @@ export default function AdminUsers() {
     setEditingUser({ ...editingUser, allowed_companies: newCompanies })
   }
 
+  const handleToggleGlobalDashboard = async (userId: string, currentValue: boolean) => {
+    try {
+      const updated = await updateUser(userId, { can_view_global_dashboard: !currentValue })
+      setUsers(
+        users.map((u) =>
+          u.id === updated.id
+            ? { ...u, can_view_global_dashboard: updated.can_view_global_dashboard }
+            : u,
+        ),
+      )
+      toast({
+        title: 'Sucesso',
+        description: `Acesso ao Dashboard Geral ${!currentValue ? 'ativado' : 'desativado'}.`,
+      })
+    } catch (error) {
+      toast({ title: 'Erro', description: 'Falha ao atualizar permissão.', variant: 'destructive' })
+    }
+  }
+
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -126,19 +146,20 @@ export default function AdminUsers() {
               <TableHead>Email</TableHead>
               <TableHead>Perfil</TableHead>
               <TableHead>Acesso (Empresas)</TableHead>
+              <TableHead>Dashboard Geral</TableHead>
               <TableHead className="w-[80px] text-right"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-slate-500">
+                <TableCell colSpan={6} className="text-center py-8 text-slate-500">
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-slate-500">
+                <TableCell colSpan={6} className="text-center py-8 text-slate-500">
                   Nenhum usuário encontrado.
                 </TableCell>
               </TableRow>
@@ -164,6 +185,14 @@ export default function AdminUsers() {
                         <span className="text-sm text-slate-400">Nenhum</span>
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={u.can_view_global_dashboard || false}
+                      onCheckedChange={() =>
+                        handleToggleGlobalDashboard(u.id, u.can_view_global_dashboard || false)
+                      }
+                    />
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => setEditingUser(u)}>
