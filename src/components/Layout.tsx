@@ -150,8 +150,12 @@ export default function Layout() {
               collapsed={!sidebarOpen}
             />
           )}
-          <NavLink to="/upload" icon={UploadCloud} label="Upload DRE" collapsed={!sidebarOpen} />
-          <NavLink to="/history" icon={History} label="Histórico" collapsed={!sidebarOpen} />
+          {user?.role !== 'gestor' && (
+            <NavLink to="/upload" icon={UploadCloud} label="Upload DRE" collapsed={!sidebarOpen} />
+          )}
+          {user?.role !== 'gestor' && (
+            <NavLink to="/history" icon={History} label="Histórico" collapsed={!sidebarOpen} />
+          )}
           {user?.role === 'admin' && (
             <div className="mt-4 mb-2">
               {sidebarOpen && (

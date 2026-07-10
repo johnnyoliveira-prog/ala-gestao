@@ -184,12 +184,14 @@ export default function CompanyDashboard() {
           Nenhum DRE encontrado para esta empresa. Faça um upload para começar a visualizar o
           dashboard.
         </p>
-        <Button asChild className="mt-4 bg-emerald-600 hover:bg-emerald-700">
-          <Link to="/upload">
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Novo Upload
-          </Link>
-        </Button>
+        {user?.role !== 'gestor' && (
+          <Button asChild className="mt-4 bg-emerald-600 hover:bg-emerald-700">
+            <Link to="/upload">
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Novo Upload
+            </Link>
+          </Button>
+        )}
       </div>
     )
   }
@@ -220,16 +222,18 @@ export default function CompanyDashboard() {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            asChild
-            variant="default"
-            className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800"
-          >
-            <Link to="/upload">
-              <PlusCircle className="w-4 h-4 mr-2" />
-              Novo Upload
-            </Link>
-          </Button>
+          {user?.role !== 'gestor' && (
+            <Button
+              asChild
+              variant="default"
+              className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800"
+            >
+              <Link to="/upload">
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Novo Upload
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/hooks/use-auth'
 
 import Layout from './components/Layout'
+import { GestorGuard } from './components/GestorGuard'
 import Index from './pages/Index'
 import Upload from './pages/Upload'
 import History from './pages/History'
@@ -27,8 +28,22 @@ const App = () => (
           <Route element={<Layout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Index />} />
-            <Route path="/upload" element={<Upload />} />
-            <Route path="/history" element={<History />} />
+            <Route
+              path="/upload"
+              element={
+                <GestorGuard>
+                  <Upload />
+                </GestorGuard>
+              }
+            />
+            <Route
+              path="/history"
+              element={
+                <GestorGuard>
+                  <History />
+                </GestorGuard>
+              }
+            />
             <Route path="/dashboard/:slug" element={<CompanyDashboard />} />
             <Route path="/dashboard/:slug/estoque" element={<Inventory />} />
             <Route path="/admin/users" element={<AdminUsers />} />
