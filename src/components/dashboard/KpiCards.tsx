@@ -1,5 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowDownIcon, ArrowUpIcon, DollarSign, TrendingDown, Activity } from 'lucide-react'
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  DollarSign,
+  TrendingDown,
+  Activity,
+  Percent,
+} from 'lucide-react'
 import { DreData } from '@/services/dres'
 
 const formatCurrency = (value: number) => {
@@ -26,8 +33,15 @@ export function KpiCards({ current, previous }: { current: DreData; previous: Dr
   const expTrend = calcTrend(exp, prevExp)
   const resTrend = calcTrend(res, prevRes)
 
+  const grossMargin = rev > 0 ? ((rev - exp) / rev) * 100 : null
+  const prevGrossMargin = prevRev > 0 ? ((prevRev - prevExp) / prevRev) * 100 : null
+  const grossMarginTrend =
+    grossMargin !== null && prevGrossMargin !== null
+      ? { value: grossMargin - prevGrossMargin, isPositive: grossMargin - prevGrossMargin >= 0 }
+      : null
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-slate-600">Receita Total</CardTitle>
@@ -91,6 +105,32 @@ export function KpiCards({ current, previous }: { current: DreData; previous: Dr
                 <ArrowDownIcon className="h-3 w-3 mr-1" />
               )}
               {Math.abs(resTrend.value).toFixed(1)}% em relação ao mês anterior
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-slate-600">Margem Bruta %</CardTitle>
+          <Percent className="h-4 w-4 text-purple-600" />
+        </CardHeader>
+        <CardContent>
+          <div
+            className={`text-2xl font-bold ${grossMargin !== null && grossMargin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}
+          >
+            {grossMargin !== null ? `${grossMargin.toFixed(1)}%` : 'N/A'}
+          </div>
+          {previous && grossMarginTrend && (
+            <p
+              className={`text-xs flex items-center mt-1 ${grossMarginTrend.isPositive ? 'text-emerald-600' : 'text-red-600'}`}
+            >
+              {grossMarginTrend.isPositive ? (
+                <ArrowUpIcon className="h-3 w-3 mr-1" />
+              ) : (
+                <ArrowDownIcon className="h-3 w-3 mr-1" />
+              )}
+              {Math.abs(grossMarginTrend.value).toFixed(1)} p.p. em relação ao mês anterior
             </p>
           )}
         </CardContent>

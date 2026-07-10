@@ -44,7 +44,7 @@ export default function CompanyDashboard() {
   const [detailsLoading, setDetailsLoading] = useState(false)
 
   const fetchData = async (silent = false) => {
-    if (!slug || slug === 'cr-vinicola') return
+    if (!slug) return
     try {
       if (!silent) setLoading(true)
       setError(false)
@@ -132,10 +132,6 @@ export default function CompanyDashboard() {
       })
       .sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true }))
   }, [lineItems])
-
-  if (slug === 'cr-vinicola') {
-    return <Navigate to="/dashboard/cr-vinicola/estoque" replace />
-  }
 
   if (loading) {
     return (
